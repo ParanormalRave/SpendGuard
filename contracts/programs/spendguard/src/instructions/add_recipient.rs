@@ -20,6 +20,15 @@ pub fn handle_add_recipient(ctx: Context<AddRecipient>, recipient: Pubkey) -> Re
     require!(recipient != Pubkey::default(), ErrorCode::InvalidRecipient);
 
     let policy = &mut ctx.accounts.policy;
+    let policy_key = policy.key();
+    let vault_key = Pubkey::create_program_address(
+        &[VAULT_SEED, policy_key.as_ref(), &[policy.vault_bump]],
+        ctx.program_id,
+    )
+    .map_err(|_| ErrorCode::InvalidPolicyConfig)?;
+    require!(recipient != policy_key, ErrorCode::InvalidRecipient);
+    require!(recipient != vault_key, ErrorCode::InvalidRecipient);
+
     let count = policy.allowed_count as usize;
     require!(count < MAX_RECIPIENTS, ErrorCode::RecipientListFull);
     require!(

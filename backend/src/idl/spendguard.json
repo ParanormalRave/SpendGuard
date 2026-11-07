@@ -433,7 +433,6 @@
         },
         {
           "name": "caller",
-          "writable": true,
           "signer": true
         },
         {
@@ -462,7 +461,10 @@
           "signer": true
         },
         {
-          "name": "agent"
+          "name": "agent",
+          "docs": [
+            "The agent must be a system-owned wallet, not a program or PDA."
+          ]
         },
         {
           "name": "policy",

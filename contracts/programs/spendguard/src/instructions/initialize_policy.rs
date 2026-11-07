@@ -8,8 +8,8 @@ pub struct InitializePolicy<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
 
-    /// CHECK: the agent is only stored on the policy, never signed for here
-    pub agent: UncheckedAccount<'info>,
+    /// The agent must be a system-owned wallet, not a program or PDA.
+    pub agent: SystemAccount<'info>,
 
     #[account(
         init,
@@ -55,10 +55,18 @@ pub fn handle_initialize_policy(
         ctx.accounts.agent.key() != ctx.accounts.owner.key(),
         ErrorCode::InvalidPolicyConfig
     );
+    require!(
+        ctx.accounts.agent.key() != Pubkey::default(),
+        ErrorCode::InvalidPolicyConfig
+    );
 
+    let policy_key = ctx.accounts.policy.key();
+    let vault_key = ctx.accounts.vault.key();
     let mut seen: Vec<Pubkey> = Vec::with_capacity(allowed_recipients.len());
     for recipient in allowed_recipients.iter() {
         require!(*recipient != Pubkey::default(), ErrorCode::InvalidRecipient);
+        require!(*recipient != policy_key, ErrorCode::InvalidRecipient);
+        require!(*recipient != vault_key, ErrorCode::InvalidRecipient);
         require!(!seen.contains(recipient), ErrorCode::DuplicateRecipient);
         seen.push(*recipient);
     }

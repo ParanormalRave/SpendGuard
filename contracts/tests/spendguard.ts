@@ -733,4 +733,97 @@ describe("spendguard", () => {
       "InsufficientVaultFunds"
     );
   });
+
+  it("M2: initialize_policy rejects a zero agent and PDA recipients", async () => {
+    const baseArgs = (policyId: anchor.BN, recipients: anchor.web3.PublicKey[]) =>
+      program.methods
+        .initializePolicy(
+          policyId,
+          new anchor.BN(SOL),
+          new anchor.BN(10 * SOL),
+          new anchor.BN(3600),
+          new anchor.BN(60),
+          recipients
+        );
+
+    // Zero-address agent.
+    {
+      const policyId = nextPolicyId();
+      const { policy, vault } = derivePolicy(owner.publicKey, policyId);
+      await expectError(
+        baseArgs(policyId, [recipient1.publicKey])
+          .accountsPartial({
+            owner: owner.publicKey,
+            agent: anchor.web3.PublicKey.default,
+            policy,
+            vault,
+          })
+          .rpc(),
+        // The zero address is the system program, which is not a
+        // system-owned wallet, so `SystemAccount` rejects it first.
+        "AccountNotSystemOwned"
+      );
+    }
+
+    // Policy PDA as a recipient.
+    {
+      const policyId = nextPolicyId();
+      const { policy, vault } = derivePolicy(owner.publicKey, policyId);
+      await expectError(
+        baseArgs(policyId, [policy])
+          .accountsPartial({
+            owner: owner.publicKey,
+            agent: agent.publicKey,
+            policy,
+            vault,
+          })
+          .rpc(),
+        "InvalidRecipient"
+      );
+    }
+
+    // Vault PDA as a recipient.
+    {
+      const policyId = nextPolicyId();
+      const { policy, vault } = derivePolicy(owner.publicKey, policyId);
+      await expectError(
+        baseArgs(policyId, [vault])
+          .accountsPartial({
+            owner: owner.publicKey,
+            agent: agent.publicKey,
+            policy,
+            vault,
+          })
+          .rpc(),
+        "InvalidRecipient"
+      );
+    }
+  });
+
+  it("M2: add_recipient rejects the policy and vault PDAs", async () => {
+    const { policy, vault } = await createPolicy({
+      perTxLimit: SOL,
+      windowLimit: 10 * SOL,
+      windowSeconds: 3600,
+      withdrawDelaySeconds: 60,
+      recipients: [recipient1.publicKey],
+      depositLamports: SOL,
+    });
+
+    await expectError(
+      program.methods
+        .addRecipient(policy)
+        .accountsPartial({ owner: owner.publicKey, policy })
+        .rpc(),
+      "InvalidRecipient"
+    );
+
+    await expectError(
+      program.methods
+        .addRecipient(vault)
+        .accountsPartial({ owner: owner.publicKey, policy })
+        .rpc(),
+      "InvalidRecipient"
+    );
+  });
 });

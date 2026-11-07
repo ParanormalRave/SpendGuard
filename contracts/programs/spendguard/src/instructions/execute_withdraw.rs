@@ -24,7 +24,6 @@ pub struct ExecuteWithdraw<'info> {
     )]
     pub vault: SystemAccount<'info>,
 
-    #[account(mut)]
     pub caller: Signer<'info>,
 
     pub system_program: Program<'info, System>,

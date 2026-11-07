@@ -439,7 +439,6 @@ export type Spendguard = {
         },
         {
           "name": "caller",
-          "writable": true,
           "signer": true
         },
         {
@@ -468,7 +467,10 @@ export type Spendguard = {
           "signer": true
         },
         {
-          "name": "agent"
+          "name": "agent",
+          "docs": [
+            "The agent must be a system-owned wallet, not a program or PDA."
+          ]
         },
         {
           "name": "policy",
