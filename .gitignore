@@ -1,0 +1,11 @@
+node_modules
+target
+.env
+.env.*
+!.env.example
+keys/
+*-keypair.json
+test-ledger
+.surfpool
+.next
+backend/data
