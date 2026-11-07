@@ -179,7 +179,7 @@ Use `#[derive(InitSpace)]`.
 5. Recipient must be in `allowed_recipients[..allowed_count]`, else `RecipientNotAllowed`.
 6. Read `Clock::get()?.unix_timestamp`. If `now - window_start >= window_seconds`, set `window_start = now` and `spent_in_window = 0`.
 7. `new_spent = spent_in_window.checked_add(amount)`. Must be `<= window_limit`, else `ExceedsWindowLimit`. Overflow maps to `ExceedsWindowLimit` too (an overflowing sum is necessarily larger than any `u64` `window_limit`).
-8. Vault balance after the transfer must be at least `pending_amount` (funds reserved for a pending withdrawal cannot be spent), else `FundsReserved`. It must also be 0 or at least the rent-exempt minimum for a zero-data account, else `InsufficientVaultFunds`.
+8. Vault balance after the transfer must be at least `pending_amount` (funds reserved for a pending withdrawal cannot be spent), else `FundsReserved`. It must also be 0 or at least the rent-exempt minimum for a zero-data account, else `InsufficientVaultFunds`. The **unreserved** part (`vault balance after the transfer - pending_amount`) must also be 0 or at least the rent-exempt minimum, else `InsufficientVaultFunds`; otherwise a later `execute_withdraw` could leave a dust balance that blocks `close_policy`.
 9. System program transfer from vault to recipient, signed with `[b"vault", policy.key(), &[vault_bump]]`.
 10. Store `spent_in_window = new_spent` and emit `PaymentExecuted { policy, recipient, amount, spent_in_window, window_limit, timestamp }`.
 

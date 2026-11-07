@@ -45,8 +45,14 @@ pub fn handle_agent_transfer(ctx: Context<AgentTransfer>, amount: u64) -> Result
     require!(amount <= policy.per_tx_limit, ErrorCode::ExceedsPerTxLimit);
 
     let recipient_key = ctx.accounts.recipient.key();
-    let allowed =
-        policy.allowed_recipients[..policy.allowed_count as usize].contains(&recipient_key);
+    let allowed_count = policy.allowed_count as usize;
+    // Defensive bound: `allowed_count` is only ever written by init and
+    // `add_recipient`, but never trust stored data to size a slice.
+    require!(
+        allowed_count <= MAX_RECIPIENTS,
+        ErrorCode::InvalidPolicyConfig
+    );
+    let allowed = policy.allowed_recipients[..allowed_count].contains(&recipient_key);
     require!(allowed, ErrorCode::RecipientNotAllowed);
 
     let now = Clock::get()?.unix_timestamp;
@@ -74,6 +80,16 @@ pub fn handle_agent_transfer(ctx: Context<AgentTransfer>, amount: u64) -> Result
     let rent_exempt_minimum = Rent::get()?.minimum_balance(0);
     require!(
         remaining == 0 || remaining >= rent_exempt_minimum,
+        ErrorCode::InsufficientVaultFunds
+    );
+    // The funds that are NOT reserved for a pending withdrawal must also be
+    // zero or rent-exempt. Otherwise a later `execute_withdraw` would pay out
+    // `pending_amount` and leave a dust balance that blocks `close_policy`.
+    let unreserved = remaining
+        .checked_sub(policy.pending_amount)
+        .ok_or(ErrorCode::FundsReserved)?;
+    require!(
+        unreserved == 0 || unreserved >= rent_exempt_minimum,
         ErrorCode::InsufficientVaultFunds
     );
 

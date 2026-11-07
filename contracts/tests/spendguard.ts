@@ -693,4 +693,44 @@ describe("spendguard", () => {
     assert.equal(info!.owner.toBase58(), anchor.web3.SystemProgram.programId.toBase58());
     assert.equal(info!.data.length, 0);
   });
+
+  it("M2: agent cannot leave a dust balance that would block close_policy", async () => {
+    const rentMin = await provider.connection.getMinimumBalanceForRentExemption(0);
+
+    const { policy, vault } = await createPolicy({
+      perTxLimit: rentMin,
+      windowLimit: 10 * rentMin,
+      windowSeconds: 3600,
+      withdrawDelaySeconds: 60,
+      recipients: [recipient1.publicKey],
+      depositLamports: 2 * rentMin,
+    });
+
+    // Reserve one rent-exempt chunk, leaving exactly one chunk unreserved.
+    await program.methods
+      .requestWithdraw(new anchor.BN(rentMin))
+      .accountsPartial({ owner: owner.publicKey, policy, vault })
+      .rpc();
+
+    // Add one lamport. Without the unreserved check, the agent could spend
+    // `rentMin`, leaving `rentMin + 1`; execute would then leave 1 lamport.
+    await program.methods
+      .deposit(new anchor.BN(1))
+      .accountsPartial({ owner: owner.publicKey, policy, vault })
+      .rpc();
+
+    await expectError(
+      program.methods
+        .agentTransfer(new anchor.BN(rentMin))
+        .accountsPartial({
+          policy,
+          vault,
+          recipient: recipient1.publicKey,
+          agent: agent.publicKey,
+        })
+        .signers([agent])
+        .rpc(),
+      "InsufficientVaultFunds"
+    );
+  });
 });
