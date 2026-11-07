@@ -264,7 +264,7 @@ MLH Solana Hackathon, November 6 to 8, 2026. Track: **AI Track** (the AI decides
 
 ## Author
 
-[Your name] ([your handle or link])
+Rave paranormalrave.dev
 
 ## License
 
