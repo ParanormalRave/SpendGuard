@@ -8,6 +8,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "print:policy": "tsx src/scripts/printPolicy.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

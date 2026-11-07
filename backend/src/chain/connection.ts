@@ -16,3 +16,15 @@ export function getConnection(): Connection {
   }
   return sharedConnection;
 }
+
+/**
+ * The RPC hostname, without path or query string, so it is safe to log and
+ * show (provider URLs often embed an API key in the path).
+ */
+export function getRpcHostname(): string {
+  try {
+    return new URL(loadConfig().rpcUrl).hostname;
+  } catch {
+    return "unknown RPC";
+  }
+}
