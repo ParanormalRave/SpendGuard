@@ -135,10 +135,7 @@
         },
         {
           "name": "agent",
-          "signer": true,
-          "relations": [
-            "policy"
-          ]
+          "signer": true
         },
         {
           "name": "system_program",
@@ -496,7 +493,9 @@
         },
         {
           "name": "vault",
-          "writable": true,
+          "docs": [
+            "here; `deposit` creates and funds it. We only need its canonical bump."
+          ],
           "pda": {
             "seeds": [
               {

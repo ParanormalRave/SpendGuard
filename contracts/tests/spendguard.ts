@@ -205,7 +205,7 @@ describe("spendguard", () => {
         })
         .signers([rogue])
         .rpc(),
-      "ConstraintHasOne"
+      "Unauthorized"
     );
   });
 
@@ -650,5 +650,47 @@ describe("spendguard", () => {
         .rpc(),
       "InsufficientVaultFunds"
     );
+  });
+
+  it("M2: the first deposit must be at least the rent-exempt minimum", async () => {
+    const policyId = nextPolicyId();
+    const { policy, vault } = derivePolicy(owner.publicKey, policyId);
+
+    await program.methods
+      .initializePolicy(
+        policyId,
+        new anchor.BN(SOL),
+        new anchor.BN(10 * SOL),
+        new anchor.BN(3600),
+        new anchor.BN(60),
+        [recipient1.publicKey]
+      )
+      .accountsPartial({
+        owner: owner.publicKey,
+        agent: agent.publicKey,
+        policy,
+        vault,
+      })
+      .rpc();
+
+    // The vault does not exist yet, so a dust deposit cannot create it.
+    await expectError(
+      program.methods
+        .deposit(new anchor.BN(1))
+        .accountsPartial({ owner: owner.publicKey, policy, vault })
+        .rpc(),
+      "InsufficientVaultFunds"
+    );
+
+    // A rent-exempt first deposit creates it.
+    await program.methods
+      .deposit(new anchor.BN(SOL))
+      .accountsPartial({ owner: owner.publicKey, policy, vault })
+      .rpc();
+
+    const info = await provider.connection.getAccountInfo(vault);
+    assert.isNotNull(info);
+    assert.equal(info!.owner.toBase58(), anchor.web3.SystemProgram.programId.toBase58());
+    assert.equal(info!.data.length, 0);
   });
 });

@@ -141,10 +141,7 @@ export type Spendguard = {
         },
         {
           "name": "agent",
-          "signer": true,
-          "relations": [
-            "policy"
-          ]
+          "signer": true
         },
         {
           "name": "systemProgram",
@@ -502,7 +499,9 @@ export type Spendguard = {
         },
         {
           "name": "vault",
-          "writable": true,
+          "docs": [
+            "here; `deposit` creates and funds it. We only need its canonical bump."
+          ],
           "pda": {
             "seeds": [
               {

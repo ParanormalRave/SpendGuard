@@ -34,7 +34,9 @@ pub fn handle_request_withdraw(ctx: Context<RequestWithdraw>, amount: u64) -> Re
     let vault_balance = ctx.accounts.vault.lamports();
     require!(amount <= vault_balance, ErrorCode::InsufficientVaultFunds);
 
-    let remaining = vault_balance - amount;
+    let remaining = vault_balance
+        .checked_sub(amount)
+        .ok_or(ErrorCode::InsufficientVaultFunds)?;
     let rent_exempt_minimum = Rent::get()?.minimum_balance(0);
     require!(
         remaining == 0 || remaining >= rent_exempt_minimum,
@@ -43,7 +45,9 @@ pub fn handle_request_withdraw(ctx: Context<RequestWithdraw>, amount: u64) -> Re
 
     let now = Clock::get()?.unix_timestamp;
     policy.pending_amount = amount;
-    policy.pending_unlock_at = now + policy.withdraw_delay_seconds;
+    policy.pending_unlock_at = now
+        .checked_add(policy.withdraw_delay_seconds)
+        .ok_or(ErrorCode::InvalidPolicyConfig)?;
 
     emit!(WithdrawRequested {
         policy: policy.key(),

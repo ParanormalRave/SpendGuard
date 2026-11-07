@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use anchor_lang::system_program;
 
 use crate::{constants::*, error::ErrorCode, events::PolicyInitialized, state::Policy};
 
@@ -21,8 +20,9 @@ pub struct InitializePolicy<'info> {
     )]
     pub policy: Account<'info, Policy>,
 
+    /// CHECK: the vault is a system-owned PDA with no data. It is not created
+    /// here; `deposit` creates and funds it. We only need its canonical bump.
     #[account(
-        mut,
         seeds = [VAULT_SEED, policy.key().as_ref()],
         bump,
     )]
@@ -42,7 +42,7 @@ pub fn handle_initialize_policy(
 ) -> Result<()> {
     require!(
         allowed_recipients.len() <= MAX_RECIPIENTS,
-        ErrorCode::InvalidPolicyConfig
+        ErrorCode::RecipientListFull
     );
     require!(window_seconds > 0, ErrorCode::InvalidPolicyConfig);
     require!(per_tx_limit > 0, ErrorCode::InvalidPolicyConfig);
@@ -84,19 +84,8 @@ pub fn handle_initialize_policy(
     policy.bump = ctx.bumps.policy;
     policy.vault_bump = ctx.bumps.vault;
 
-    // Create the vault as a system-owned, zero-data account and make it
-    // rent-exempt. A plain transfer to a non-existent PDA creates it.
-    let rent_exempt_minimum = Rent::get()?.minimum_balance(0);
-    system_program::transfer(
-        CpiContext::new(
-            system_program::ID,
-            system_program::Transfer {
-                from: ctx.accounts.owner.to_account_info(),
-                to: ctx.accounts.vault.to_account_info(),
-            },
-        ),
-        rent_exempt_minimum,
-    )?;
+    // The vault is NOT created here. `deposit` creates it with the first
+    // transfer, which must be at least the rent-exempt minimum.
 
     emit!(PolicyInitialized {
         policy: policy.key(),

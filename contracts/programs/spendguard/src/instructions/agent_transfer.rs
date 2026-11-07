@@ -7,7 +7,6 @@ use crate::{constants::*, error::ErrorCode, events::PaymentExecuted, state::Poli
 pub struct AgentTransfer<'info> {
     #[account(
         mut,
-        has_one = agent,
         seeds = [POLICY_SEED, policy.owner.as_ref(), &policy.policy_id.to_le_bytes()],
         bump = policy.bump,
     )]
@@ -31,6 +30,16 @@ pub struct AgentTransfer<'info> {
 pub fn handle_agent_transfer(ctx: Context<AgentTransfer>, amount: u64) -> Result<()> {
     let policy = &mut ctx.accounts.policy;
 
+    // 1. Only the policy's agent may move funds. We check this explicitly
+    //    (instead of `has_one = agent`) so the failure is our own
+    //    `Unauthorized` error rather than Anchor's `ConstraintHasOne`.
+    require_keys_eq!(
+        ctx.accounts.agent.key(),
+        policy.agent,
+        ErrorCode::Unauthorized
+    );
+
+    // 2. Kill switch.
     require!(!policy.paused, ErrorCode::Paused);
     require!(amount > 0, ErrorCode::InvalidAmount);
     require!(amount <= policy.per_tx_limit, ErrorCode::ExceedsPerTxLimit);
@@ -41,7 +50,9 @@ pub fn handle_agent_transfer(ctx: Context<AgentTransfer>, amount: u64) -> Result
     require!(allowed, ErrorCode::RecipientNotAllowed);
 
     let now = Clock::get()?.unix_timestamp;
-    if now - policy.window_start >= policy.window_seconds {
+    // `saturating_sub` keeps this checked: if the clock ever moved backwards
+    // the elapsed time is treated as 0, so the window simply does not reset.
+    if now.saturating_sub(policy.window_start) >= policy.window_seconds {
         policy.window_start = now;
         policy.spent_in_window = 0;
     }

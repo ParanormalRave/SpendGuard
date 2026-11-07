@@ -145,8 +145,8 @@ Use `#[derive(InitSpace)]`.
 
 ### Vault lifecycle
 
-- `initialize_policy` creates the vault PDA and funds it with the rent-exempt minimum for a zero-data account (`Rent::get()?.minimum_balance(0)`) via a `system_program::transfer` from the owner. Do **not** use `#[account(init)]` for the vault: `init` makes the account program-owned, but the vault must stay system-owned with no data.
-- `deposit` only tops up the vault. There is no "first deposit" special case.
+- `initialize_policy` does **not** create the vault. It only derives and stores `vault_bump`. Do **not** use `#[account(init)]` for the vault: `init` makes the account program-owned, but the vault must stay system-owned with no data.
+- `deposit` creates the vault on the first deposit via a `system_program::transfer` from the owner. Because the vault is a zero-data account, the first deposit must be at least the rent-exempt minimum (`Rent::get()?.minimum_balance(0)`), else `InsufficientVaultFunds`. Later deposits only top it up.
 - `close_policy` requires vault balance 0 and no pending withdrawal. It returns the **policy account's** rent only. The vault's rent is recovered by the final delayed withdrawal: `request_withdraw` allows the remaining balance to be exactly 0, which drains and purges the vault.
 - `getVaultBalance` must return 0 when the vault account does not exist (it is purged after being drained).
 
@@ -160,8 +160,8 @@ Use `#[derive(InitSpace)]`.
 
 | Instruction | Signer | Behavior |
 |---|---|---|
-| `initialize_policy(policy_id, per_tx_limit, window_limit, window_seconds, withdraw_delay_seconds, allowed_recipients: Vec<Pubkey>)` | owner | Creates the policy for the `agent` account passed in the accounts struct. Creates and rent-funds the vault (see Vault lifecycle). Validate: at most 10 recipients, no duplicates, none equal to the zero address, `agent != owner`, `window_seconds > 0`, `per_tx_limit > 0`, `per_tx_limit <= window_limit`, `1 <= withdraw_delay_seconds <= 604800`. Sets `window_start` to now. Emits `PolicyInitialized`. |
-| `deposit(amount)` | owner | System transfer from owner to vault. The vault already exists and is rent-exempt from `initialize_policy`. |
+| `initialize_policy(policy_id, per_tx_limit, window_limit, window_seconds, withdraw_delay_seconds, allowed_recipients: Vec<Pubkey>)` | owner | Creates the policy for the `agent` account passed in the accounts struct and stores both bumps. Does **not** create the vault (see Vault lifecycle). Validate: at most 10 recipients (`RecipientListFull`), no duplicates (`DuplicateRecipient`), none equal to the zero address (`InvalidRecipient`), `agent != owner`, `window_seconds > 0`, `per_tx_limit > 0`, `per_tx_limit <= window_limit`, `1 <= withdraw_delay_seconds <= 604800` (all `InvalidPolicyConfig`). Sets `window_start` to now. Emits `PolicyInitialized`. |
+| `deposit(amount)` | owner | System transfer from owner to vault. The first deposit creates the vault and must be at least the rent-exempt minimum for a zero-data account; later deposits only top it up. |
 | `agent_transfer(amount)` | agent | Enforcement logic below. |
 | `add_recipient(recipient)` | owner | Rejects the zero address, duplicates, and a full list. Emits `RecipientAdded`. |
 | `set_paused(paused: bool)` | owner | Sets the flag. Emits `PausedChanged`. |
@@ -172,7 +172,7 @@ Use `#[derive(InitSpace)]`.
 
 ### `agent_transfer` enforcement order
 
-1. `policy.agent` must equal the signer (use `has_one = agent`). Otherwise `Unauthorized`.
+1. `policy.agent` must equal the signer. Check it explicitly with `require_keys_eq!` (not `has_one = agent`) so the failure is our own `Unauthorized` error, not Anchor's `ConstraintHasOne`.
 2. `paused` must be false, else `Paused`.
 3. `amount > 0`, else `InvalidAmount`.
 4. `amount <= per_tx_limit`, else `ExceedsPerTxLimit`.
