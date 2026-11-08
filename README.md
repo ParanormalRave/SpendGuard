@@ -35,7 +35,7 @@ If any check fails, the transaction reverts. The AI never has the power to bypas
 ```mermaid
 flowchart LR
     O[Owner wallet] -->|creates policy, funds vault| P[(Policy + Vault on Solana)]
-    A[AI agent - Claude] -->|agent_transfer| P
+    A[AI agent] -->|agent_transfer| P
     P -->|within rules| R[Allowed recipient]
     P -.->|over limit / bad recipient / paused| X[Transaction rejected]
     O -->|request_withdraw| P
@@ -66,7 +66,7 @@ Tick these off as they are built.
 - [ ] Limits and window length are fixed after creation
 
 **Backend**
-- [ ] AI agent (Claude) that decides what to buy and pays through the program
+- [ ] AI agent (LLM via Groq) that decides what to buy and pays through the program
 - [ ] Attempt log (successful and rejected)
 - [ ] Chain watcher that turns program events into alerts
 - [ ] Anomaly detection: new recipient, unusually large amount, near the window limit
@@ -117,7 +117,7 @@ Signing in with Google gives the backend a verified email address to send alerts
 |---|---|
 | Smart contract | Rust, Anchor |
 | Contract tests | TypeScript, Mocha (Anchor's default test template) |
-| Backend | Node.js, TypeScript, Express, SQLite, Anthropic SDK, Nodemailer, Google Auth Library |
+| Backend | Node.js, TypeScript, Express, SQLite, `openai` (OpenAI-compatible client for Groq), Nodemailer, Google Auth Library |
 | Frontend | Next.js (App Router), TypeScript, Tailwind CSS, Solana wallet adapter, Google sign-in button |
 | Network | Solana devnet (local validator for development) |
 
@@ -140,7 +140,7 @@ spendguard/
 
 - Rust, Solana CLI, and Anchor installed (check with `solana --version` and `anchor --version`)
 - Node.js 20 or newer and Yarn
-- An Anthropic API key (for the agent)
+- A Groq API key (free at console.groq.com)
 - A Solana wallet browser extension (Phantom, Solflare, or similar) set to **devnet**
 - A Google Cloud OAuth client ID (for Sign in with Google)
 - SMTP credentials for sending email (a Gmail account with an app password works, or any SMTP provider)
@@ -205,8 +205,9 @@ yarn dev                # http://localhost:3000
 |---|---|---|
 | `RPC_URL` | backend, frontend | Solana RPC endpoint (devnet) |
 | `PROGRAM_ID` | backend, frontend | Deployed program ID |
-| `ANTHROPIC_API_KEY` | backend | Claude API key |
-| `ANTHROPIC_MODEL` | backend | Model name (see Anthropic docs for the current one) |
+| `LLM_BASE_URL` | backend | OpenAI-compatible endpoint (Groq: `https://api.groq.com/openai/v1`) |
+| `LLM_API_KEY` | backend | Groq API key |
+| `LLM_MODEL` | backend | Model name (see Groq docs for the current one) |
 | `AGENT_KEYPAIR_PATH` | backend | Agent keypair file (devnet only, never commit) |
 | `KEEPER_KEYPAIR_PATH` | backend | Keeper keypair file that pays fees for releases (devnet only, never commit) |
 | `POLICY_ADDRESS` | backend | Policy the agent operates under |

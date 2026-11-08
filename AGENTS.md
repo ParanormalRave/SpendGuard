@@ -37,7 +37,7 @@ spendguard/
 │       ├── chain/        # connection, program, keypairs, PDAs, reads
 │       ├── payments/     # executePayment, error parsing
 │       ├── db/           # SQLite setup and queries
-│       ├── agent/        # Claude tool loop, scenarios, services
+│       ├── agent/        # tool-calling loop, scenarios, services
 │       ├── watcher/      # event listener and backfill
 │       ├── anomaly/      # alert rules
 │       ├── alerts/       # raiseAlert
@@ -203,9 +203,9 @@ Use `#[derive(InitSpace)]`.
 
 ## 6. Backend spec (`backend/`)
 
-**Stack:** Node.js 20+, TypeScript, Express, `better-sqlite3`, `@anthropic-ai/sdk`, the Anchor TypeScript client and `@solana/web3.js` (use the packages the `anchor init` template installed), `nodemailer`, `google-auth-library`, `jsonwebtoken`, `tweetnacl` and `bs58` (wallet signature verification), `dotenv`.
+**Stack:** Node.js 20+, TypeScript, Express, `better-sqlite3`, `openai` (used as an OpenAI-compatible client pointed at Groq), the Anchor TypeScript client and `@solana/web3.js` (use the packages the `anchor init` template installed), `nodemailer`, `google-auth-library`, `jsonwebtoken`, `tweetnacl` and `bs58` (wallet signature verification), `dotenv`.
 
-**Environment variables:** `RPC_URL`, `PROGRAM_ID`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `AGENT_KEYPAIR_PATH`, `KEEPER_KEYPAIR_PATH`, `POLICY_ADDRESS`, `GOOGLE_CLIENT_ID`, `JWT_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `UNUSUAL_MULTIPLIER` (default 3), `UNUSUAL_MIN_HISTORY` (default 3), `NEAR_LIMIT_PERCENT` (default 80), `PORT`, `FRONTEND_ORIGIN`.
+**Environment variables:** `RPC_URL`, `PROGRAM_ID`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `AGENT_KEYPAIR_PATH`, `KEEPER_KEYPAIR_PATH`, `POLICY_ADDRESS`, `GOOGLE_CLIENT_ID`, `JWT_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `UNUSUAL_MULTIPLIER` (default 3), `UNUSUAL_MIN_HISTORY` (default 3), `NEAR_LIMIT_PERCENT` (default 80), `PORT`, `FRONTEND_ORIGIN`.
 
 ### Functions by module
 
@@ -243,7 +243,7 @@ Use `#[derive(InitSpace)]`.
 
 ### Agent
 
-A Claude tool loop with these tools:
+A tool-calling loop with these tools:
 
 - `get_policy()`: limits and the amount already spent in the current window.
 - `get_balance()`: the vault balance.
@@ -253,6 +253,8 @@ A Claude tool loop with these tools:
 `pay` must **always attempt the transaction** and report the outcome back to the model. On failure, return the program error code (for example `ExceedsPerTxLimit`) as the tool result so the model can explain it.
 
 Every attempt is logged with this status: `success`, `rejected` (the program returned one of its own errors), or `error` (anything else).
+
+The loop calls the model through the `openai` package pointed at `LLM_BASE_URL` (Groq) and runs at most 10 rounds; after the tenth it stops with `max_rounds`. Tool arguments arrive as a JSON string, so parse them in `try`/`catch` and return an error tool result when they are malformed instead of throwing. On HTTP 429, retry up to 3 times, waiting for the `retry-after` header when the response includes it.
 
 ### Alert types and rules
 

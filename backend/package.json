@@ -9,21 +9,31 @@
   },
   "scripts": {
     "print:policy": "tsx src/scripts/printPolicy.ts",
+    "test:payments": "tsx src/scripts/testPayments.ts",
+    "setup:demo": "tsx scripts/setup-demo.ts",
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@anchor-lang/core": "^1.2.2",
     "@anthropic-ai/sdk": "^1.6.0",
     "@solana/web3.js": "^1.99.0",
+    "ai": "^7.0.164",
     "better-sqlite3": "^12.11.1",
     "bn.js": "^5.2.3",
     "cors": "^2.8.6",
     "dotenv": "^18.0.9",
-    "express": "^4.22.3"
+    "express": "^4.22.3",
+    "open": "^11.0.4",
+    "openai": "^7.53.0",
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
     "@types/bn.js": "^5.1.6",
+    "@types/bs58": "^5.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.25",
     "@types/node": "^24.19.2",

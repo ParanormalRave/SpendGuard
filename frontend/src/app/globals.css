@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+/*
+ * SpendGuard theme — docs/design.md is the source of truth.
+ * Every colour and radius used by the UI lives in this file. Components use
+ * the generated Tailwind utilities and never write hex values or pixel radii.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Colour (docs/design.md section 4) */
+  --ink: #0f1424;
+  --panel: #171e33;
+  --line: #2a3354;
+  --paper: #e8ecf8;
+  --muted: #8f9ac0;
+  --leash: #7c6cff;
+  --leash-strong: #5b4bff;
+  --allowed: #2fd2a4;
+  --caution: #f4b740;
+  --blocked: #ff5c6c;
+
+  /* Primary button text: design.md specifies white on --leash-strong. */
+  --on-accent: #ffffff;
+
+  /* Radius by role (docs/design.md section 6) */
+  --r-panel: 20px;
+  --r-control: 10px;
+  --r-chip: 6px;
+  --r-pill: 9999px;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-panel: var(--panel);
+  --color-line: var(--line);
+  --color-paper: var(--paper);
+  --color-muted: var(--muted);
+  --color-leash: var(--leash);
+  --color-leash-strong: var(--leash-strong);
+  --color-allowed: var(--allowed);
+  --color-caution: var(--caution);
+  --color-blocked: var(--blocked);
+  --color-on-accent: var(--on-accent);
+
+  --radius-panel: var(--r-panel);
+  --radius-control: var(--r-control);
+  --radius-chip: var(--r-chip);
+  --radius-pill: var(--r-pill);
+
+  /* Font variables are set by next/font in src/app/layout.tsx. */
+  --font-display: var(--font-bricolage), var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+}
+
+html {
+  background-color: var(--ink);
+}
+
+body {
+  min-height: 100%;
+  background-color: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+/* docs/design.md section 11: visible keyboard focus everywhere. */
+:focus-visible {
+  outline: 2px solid var(--leash);
+  outline-offset: 2px;
+}
+
+/* Numbers line up when an amount is shown (docs/design.md section 5). */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Wallet adapter modal (third-party markup) rendered with SpendGuard tokens.
+ * The connect button itself is ours; only the modal and its wallet list need
+ * these overrides. No shadows, gradients or colours beyond the theme.
+ */
+.wallet-adapter-modal {
+  background: transparent;
+}
+
+.wallet-adapter-modal-overlay {
+  background: color-mix(in srgb, var(--ink) 82%, transparent);
+}
+
+.wallet-adapter-modal-wrapper {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  box-shadow: none;
+  font-family: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+}
+
+.wallet-adapter-modal-title {
+  color: var(--paper);
+  font-family: var(--font-bricolage), var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+}
+
+.wallet-adapter-modal-list .wallet-adapter-button {
+  border-radius: 0;
+  color: var(--paper);
+  font-family: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+}
+
+.wallet-adapter-modal-list .wallet-adapter-button:not([disabled]):hover {
+  background-color: var(--ink);
+}
+
+.wallet-adapter-modal-button-close {
+  background: var(--ink);
+}
+
+.wallet-adapter-modal-button-close svg {
+  fill: var(--muted);
+}
+
+.wallet-adapter-modal-button-close:hover svg {
+  fill: var(--paper);
+}
+
+.wallet-adapter-modal-list-more {
+  color: var(--muted);
+}
+
+.wallet-adapter-modal-list-more svg {
+  fill: var(--muted);
+}
+
+/* docs/design.md section 9: respect prefers-reduced-motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -16,8 +16,9 @@ export interface AppConfig {
   keeperKeypairPath?: string;
   /** Policy the demo agent and UI operate on (4F). */
   policyAddress?: string;
-  anthropicApiKey?: string;
-  anthropicModel?: string;
+  llmBaseUrl?: string;
+  llmApiKey?: string;
+  llmModel?: string;
   googleClientId?: string;
   jwtSecret?: string;
   smtpHost?: string;
@@ -42,8 +43,8 @@ interface NumberBounds {
  *
  * Required for every step from 4A onwards: RPC_URL, PROGRAM_ID,
  * AGENT_KEYPAIR_PATH. Everything else is optional until the milestone that
- * first uses it (Anthropic in 4E, SMTP/Google in M7), so the foundation can be
- * verified without billable keys.
+ * first uses it (the LLM via Groq in 4E, SMTP/Google in M7), so the
+ * foundation can be verified without billable keys.
  *
  * Collects every problem before throwing, so a bad .env needs one fix pass.
  * Not cached: calling it again re-reads the environment.
@@ -52,7 +53,8 @@ export function loadConfig(): AppConfig {
   const errors: string[] = [];
 
   const rpcUrl = requiredEnv("RPC_URL", errors);
-  const programIdRaw = requiredEnv("PROGRAM_ID", errors);
+  const programIdRaw = requiredEnv("PROGRAM_ID", errors); 
+  
   const agentKeypairPath = requiredEnv("AGENT_KEYPAIR_PATH", errors);
 
   if (rpcUrl !== undefined) {
@@ -64,21 +66,38 @@ export function loadConfig(): AppConfig {
     try {
       programId = new PublicKey(programIdRaw);
     } catch {
-      errors.push(`PROGRAM_ID is not a valid Solana public key: "${programIdRaw}"`);
+      errors.push(
+        `PROGRAM_ID is not a valid Solana public key: "${programIdRaw}"`,
+      );
     }
   }
 
   const smtpPort = integerEnv("SMTP_PORT", 587, errors, { min: 1, max: 65535 });
-  const unusualMultiplier = numberEnv("UNUSUAL_MULTIPLIER", 3, errors, { min: 0 });
-  const unusualMinHistory = integerEnv("UNUSUAL_MIN_HISTORY", 3, errors, { min: 0 });
-  const nearLimitPercent = integerEnv("NEAR_LIMIT_PERCENT", 80, errors, { min: 1, max: 100 });
+  const unusualMultiplier = numberEnv("UNUSUAL_MULTIPLIER", 3, errors, {
+    min: 0,
+  });
+  const unusualMinHistory = integerEnv("UNUSUAL_MIN_HISTORY", 3, errors, {
+    min: 0,
+  });
+  const nearLimitPercent = integerEnv("NEAR_LIMIT_PERCENT", 80, errors, {
+    min: 1,
+    max: 100,
+  });
   const port = integerEnv("PORT", 3001, errors, { min: 1, max: 65535 });
 
   // One throw for everything, including the (impossible) case of a required
   // value missing without a recorded error.
-  if (errors.length > 0 || rpcUrl === undefined || programId === undefined || agentKeypairPath === undefined) {
-    const details = errors.length > 0 ? errors : ["unknown configuration error"];
-    throw new Error(`Invalid configuration:\n${details.map((message) => ` - ${message}`).join("\n")}`);
+  if (
+    errors.length > 0 ||
+    rpcUrl === undefined ||
+    programId === undefined ||
+    agentKeypairPath === undefined
+  ) {
+    const details =
+      errors.length > 0 ? errors : ["unknown configuration error"];
+    throw new Error(
+      `Invalid configuration:\n${details.map((message) => ` - ${message}`).join("\n")}`,
+    );
   }
 
   return {
@@ -87,8 +106,9 @@ export function loadConfig(): AppConfig {
     agentKeypairPath,
     keeperKeypairPath: optionalEnv("KEEPER_KEYPAIR_PATH"),
     policyAddress: optionalEnv("POLICY_ADDRESS"),
-    anthropicApiKey: optionalEnv("ANTHROPIC_API_KEY"),
-    anthropicModel: optionalEnv("ANTHROPIC_MODEL"),
+    llmBaseUrl: optionalEnv("LLM_BASE_URL"),
+    llmApiKey: optionalEnv("LLM_API_KEY"),
+    llmModel: optionalEnv("LLM_MODEL"),
     googleClientId: optionalEnv("GOOGLE_CLIENT_ID"),
     jwtSecret: optionalEnv("JWT_SECRET"),
     smtpHost: optionalEnv("SMTP_HOST"),
@@ -122,7 +142,12 @@ function requiredEnv(key: string, errors: string[]): string | undefined {
   return value;
 }
 
-function numberEnv(key: string, fallback: number, errors: string[], bounds: NumberBounds): number {
+function numberEnv(
+  key: string,
+  fallback: number,
+  errors: string[],
+  bounds: NumberBounds,
+): number {
   const raw = readEnv(key);
   if (raw === undefined) {
     return fallback;
@@ -144,7 +169,12 @@ function numberEnv(key: string, fallback: number, errors: string[], bounds: Numb
   return value;
 }
 
-function integerEnv(key: string, fallback: number, errors: string[], bounds: NumberBounds): number {
+function integerEnv(
+  key: string,
+  fallback: number,
+  errors: string[],
+  bounds: NumberBounds,
+): number {
   const value = numberEnv(key, fallback, errors, bounds);
   if (!Number.isInteger(value)) {
     errors.push(`${key} must be a whole number, got ${value}`);
@@ -168,6 +198,8 @@ function validateRpcUrl(raw: string, errors: string[]): void {
 
   // Hard rule: this project never touches mainnet.
   if (/mainnet/i.test(url.hostname)) {
-    errors.push("RPC_URL points at mainnet. SpendGuard is devnet/localnet only.");
+    errors.push(
+      "RPC_URL points at mainnet. SpendGuard is devnet/localnet only.",
+    );
   }
 }
