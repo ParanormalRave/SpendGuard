@@ -6,6 +6,7 @@ import { getRpcHostname } from "./chain/connection";
 import { fetchPolicy, getVaultBalance, type PolicyAccount } from "./chain/policy";
 import { closeDb, getDb, initDb, readAttempts, readPayments } from "./db";
 import { API_SCENARIOS, getScenarioTask, loadServices, runAgent } from "./agent";
+import { startWatcher } from "./watcher";
 
 /**
  * HTTP layer for M4 step 4F (AGENTS.md section 6).
@@ -256,6 +257,18 @@ export function startServer(): void {
   // Warm the cached service wallets so the first /services call is instant.
   loadServices();
 
+  // Start the watcher asynchronously: its backfill runs at startup, and a
+  // watcher failure must never stop the HTTP API from serving requests.
+  let stopWatcher: (() => Promise<void>) | undefined;
+  void startWatcher()
+    .then((handle) => {
+      stopWatcher = handle.stop;
+    })
+    .catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[server] watcher failed to start: ${sanitizeMessage(message)}`);
+    });
+
   const app = createApp();
   const server = app.listen(config.port, () => {
     console.log(`SpendGuard backend listening on http://localhost:${config.port}`);
@@ -267,10 +280,17 @@ export function startServer(): void {
 
   const shutdown = (signal: string): void => {
     console.log(`\n${signal} received, shutting down`);
-    server.close(() => {
-      closeDb();
-      process.exit(0);
-    });
+    const close = (): void => {
+      server.close(() => {
+        closeDb();
+        process.exit(0);
+      });
+    };
+    if (stopWatcher !== undefined) {
+      void stopWatcher().finally(close);
+    } else {
+      close();
+    }
   };
 
   process.once("SIGINT", () => shutdown("SIGINT"));

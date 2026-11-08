@@ -332,6 +332,48 @@ export function savePayment(db: Database.Database, payment: SavePaymentInput): b
   return result.changes > 0;
 }
 
+/** One row of the `policies` index, populated from `PolicyInitialized`. */
+export interface PolicyIndexInput {
+  address: string;
+  owner: string;
+  agent: string;
+  policyId: string;
+  createdAt?: number;
+}
+
+/**
+ * Insert or refresh the UI's policy index row. The policy's owner/agent and
+ * limits are immutable on chain, so an existing row is left alone.
+ *
+ * Returns `true` when a new row was inserted, `false` when it already existed.
+ */
+export function upsertPolicy(db: Database.Database, policy: PolicyIndexInput): boolean {
+  const stmt = db.prepare(`
+    INSERT INTO policies (address, owner, agent, policy_id, created_at)
+    VALUES (@address, @owner, @agent, @policy_id, @created_at)
+    ON CONFLICT(address) DO NOTHING
+  `);
+  const result = stmt.run({
+    address: policy.address,
+    owner: policy.owner,
+    agent: policy.agent,
+    policy_id: policy.policyId,
+    created_at: policy.createdAt ?? Date.now(),
+  });
+  return result.changes > 0;
+}
+
+/**
+ * The indexed owner for a policy, or `null` when the index has no row yet.
+ * The watcher falls back to reading the account from chain in that case.
+ */
+export function getPolicyOwner(db: Database.Database, address: string): string | null {
+  const row = db
+    .prepare("SELECT owner FROM policies WHERE address = ?")
+    .get(address) as { owner: string } | undefined;
+  return row?.owner ?? null;
+}
+
 /**
  * Earlier payments to one recipient under one policy.
  *
