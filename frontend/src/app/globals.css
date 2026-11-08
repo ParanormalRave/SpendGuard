@@ -24,6 +24,26 @@
   /* Primary button text: design.md specifies white on --leash-strong. */
   --on-accent: #ffffff;
 
+  /* Layered surfaces and washes (docs/design.md sections 4 and 6).
+     Two surface levels only, plus tinted washes for status and accent areas. */
+  --surface-raised: #1d2542;
+  --surface-sunken: #0b1020;
+  --overlay: color-mix(in srgb, var(--ink) 82%, transparent);
+  --leash-wash: color-mix(in srgb, var(--leash) 14%, transparent);
+  --allowed-wash: color-mix(in srgb, var(--allowed) 14%, transparent);
+  --caution-wash: color-mix(in srgb, var(--caution) 16%, transparent);
+  --blocked-wash: color-mix(in srgb, var(--blocked) 14%, transparent);
+
+  /* Depth: floating layers may lift, the gauge may glow. Nothing else. */
+  --s-panel: 0 1px 0 0 color-mix(in srgb, var(--paper) 5%, transparent),
+    0 16px 32px -16px rgb(0 0 0 / 0.5);
+  --s-glow: 0 0 28px color-mix(in srgb, var(--leash) 22%, transparent);
+
+  /* Shell dimensions (docs/design.md section 6) */
+  --w-sidebar: 264px;
+  --w-topbar: 64px;
+  --w-content: 1100px;
+
   /* Radius by role (docs/design.md section 6) */
   --r-panel: 20px;
   --r-control: 10px;
@@ -43,6 +63,20 @@
   --color-caution: var(--caution);
   --color-blocked: var(--blocked);
   --color-on-accent: var(--on-accent);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-overlay: var(--overlay);
+  --color-leash-wash: var(--leash-wash);
+  --color-allowed-wash: var(--allowed-wash);
+  --color-caution-wash: var(--caution-wash);
+  --color-blocked-wash: var(--blocked-wash);
+
+  --shadow-panel: var(--s-panel);
+  --shadow-glow: var(--s-glow);
+
+  --spacing-sidebar: var(--w-sidebar);
+  --spacing-topbar: var(--w-topbar);
+  --container-content: var(--w-content);
 
   --radius-panel: var(--r-panel);
   --radius-control: var(--r-control);
@@ -82,14 +116,14 @@ body {
 /*
  * Wallet adapter modal (third-party markup) rendered with SpendGuard tokens.
  * The connect button itself is ours; only the modal and its wallet list need
- * these overrides. No shadows, gradients or colours beyond the theme.
+ * these overrides. No shadows or gradients beyond the theme.
  */
 .wallet-adapter-modal {
   background: transparent;
 }
 
 .wallet-adapter-modal-overlay {
-  background: color-mix(in srgb, var(--ink) 82%, transparent);
+  background: var(--overlay);
 }
 
 .wallet-adapter-modal-wrapper {

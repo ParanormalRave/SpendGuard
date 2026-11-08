@@ -4,7 +4,7 @@ Save this file as `docs/design.md`. It is the single source of truth for how the
 
 **For coding agents:** read this file before building or changing any UI. If a component you write conflicts with this file, this file wins. Do not invent colors, fonts, radii or copy that are not defined here. If something you need is missing, stop and ask the human.
 
-**Status:** version 1, written from the written design brief. The human's Pinterest picks have not been reviewed yet. Items marked **(confirm)** may change once the references are reviewed. Build with the tokens below so a change is a one-file edit.
+**Status:** version 2. Version 1 set the palette, typography, the leash gauge and the writing rules. Version 2 adds the authenticated application shell, the dashboard and activity structure, and the allowed layering (two surfaces, one accent wash, a subtle glow), following `docs/ui-redesign-spec.md`. Palette values, radius roles, status semantics and every functional rule are unchanged. Build with the tokens below so a change is a one-file edit.
 
 ---
 
@@ -75,7 +75,7 @@ Rules:
 
 - Status colors only mean status. Never use green, amber or red for decoration.
 - Color is never the only signal. Every status also has an icon and a word.
-- No gradients, glows or colored shadows.
+- Layering is allowed only where section 6 names it: two surface levels, one accent wash, and a subtle glow on the gauge. Never a decorative gradient on text, status or buttons.
 
 ## 5. Typography
 
@@ -95,12 +95,15 @@ Sentence case everywhere. Do not use all-caps labels, tracked-out small caps, or
 
 ## 6. Layout, shape, depth
 
-- Left aligned. Content width max 1100px, centered on the page.
-- **Top bar only, no sidebar** (there are four pages): wordmark on the left, then a `Devnet` pill, the alert bell and the wallet button on the right.
+- **Two layouts.** The landing page uses its own header and a centered column. The three application pages (`/create`, `/dashboard`, `/activity`) use the authenticated shell: a 264px sidebar, a 64px top bar and a content column capped at 1100px.
+- **Sidebar:** the logo mark and wordmark, then Dashboard, Policies, Alerts, Transactions and Settings. The active item is marked by a `--leash` rail and `--paper` text; the other items are `--muted`. Settings opens a sheet, not a page.
+- **Top bar:** the current page title on the left; a `Devnet` pill, the alert bell and the wallet button on the right. Below 1024px the sidebar becomes a drawer, opened from a menu button in the top bar.
+- **Landing header:** wordmark on the left, `Devnet` pill, bell and wallet button on the right. No sidebar.
 - The wordmark is the text `SpendGuard` in Bricolage Grotesque, with a short horizontal line segment to its left as a tether mark. No shield.
-- Do not chop the dashboard into a grid of identical cards. Use one large panel for the policy and the gauge, then sections separated by `--line` dividers.
+- Left aligned. A section heading and its one-line context sit above the panel they describe, not inside a header bar.
+- Do not chop the dashboard into a grid of identical cards. Use one large panel for the policy and the gauge, then sections separated by `--line` dividers, with at most two secondary panels side by side.
 - **Radius by role:** large panels 20px, inputs and buttons 10px, pills fully round, address chips 6px. Do not use one radius for everything.
-- **Depth:** from surface color and 1px `--line` borders. No drop shadows.
+- **Depth:** two surface levels (`--panel` and `--surface-raised`) plus 1px `--line` borders. A subtle `--s-panel` shadow may separate a floating layer (drawer, sheet, dropdown, toast). No drop shadows on ordinary page sections.
 - Spacing scale: 4, 8, 12, 16, 24, 32, 48, 72.
 
 ## 7. Components
@@ -121,7 +124,15 @@ Sentence case everywhere. Do not use all-caps labels, tracked-out small caps, or
 | Critical banner | Full-width band in `--blocked` under the top bar. Stays until dismissed or resolved. Contains one action link. |
 | Wizard stepper | Numbered 1, 2, 3, because the create flow really is a sequence. |
 | Toast | Bottom left, 5 seconds, says what happened in the same words as the button. |
-| Empty state | One sentence that says what to do next, plus the action button. |
+| Empty state | One sentence that says what to do next, plus the action button. Only after the data has loaded and is confirmed empty. |
+| Loading state | One muted sentence (`Loading payments…`) with an optional spinner. Never an empty-state sentence while data is still arriving. |
+| Unavailable state | Says which capability is missing and why it is missing. Never rendered as an empty list or a zero. |
+| App shell | Sidebar, top bar and content column from section 6. The sidebar scrolls on its own; the top bar stays in place. |
+| Page heading | Page title in Bricolage Grotesque, one sentence of context in `--muted`, the primary action on the right. |
+| Data panel | `--panel`, a 1px `--line` border and a 20px radius. A panel that must sit above others uses `--surface-raised`. |
+| Chart | Bars for daily spend, `--leash` fill, `--line` baseline, amounts in SOL, a 7 day, 30 day and all range filter. No other grid lines. |
+| Settings sheet | Right-hand sheet for local display preferences and wallet details. Closes on Escape and returns focus to the trigger. |
+| Scenario runner | One button per scenario with a one-line description beneath it. The result area shows the agent message, each attempt and the on-chain outcome. |
 
 ## 8. Pages
 
@@ -179,6 +190,17 @@ Validate before enabling the next button. The review step is a plain summary lis
 +--------------------------------------------------------------+
 ```
 
+The page has six sections, in this order:
+
+1. **Welcome:** greeting, one sentence describing the current state, and the `Create policy` action.
+2. **Spending overview:** the large leash gauge, spent and remaining amounts, reset countdown and the per-payment marker.
+3. **Spending analytics:** the chart from section 7, with 7 day, 30 day and all filters.
+4. **Active policy panel:** status, window allowance, per-payment limit, remaining, reset time and the pause or resume control.
+5. **Recent activity:** payments, blocked attempts and alerts, each with a status word: `Allowed`, `Pending`, `Blocked` or `Failed`.
+6. **Quick actions:** only destinations that exist.
+
+Below them sit the policy management controls: vault balance, the recipient list, `Add recipient`, `Deposit`, `Request withdrawal`, and the pending withdrawal card when one exists.
+
 When paused, the whole page shows a `--blocked` band: `Agent paused. No payments can go through.` and the button becomes `Resume agent`.
 
 ### `/activity` Activity
@@ -227,14 +249,14 @@ When paused, the whole page shows a `--blocked` band: `Agent paused. No payments
 - Text contrast of at least 4.5 to 1 against its background.
 - Visible keyboard focus: a 2px ring in `--leash` with a 2px offset on every interactive element.
 - Touch targets at least 44px.
-- Mobile first: a single column below 768px. The top bar collapses to the wordmark, the bell and the wallet button. Tables become stacked rows.
+- Mobile first: a single column below 768px. Below 1024px the sidebar becomes a drawer. The top bar collapses to the menu button, the page title, the bell and the wallet button. Tables become stacked rows. The chart takes the panel width without horizontal scrolling.
 - Every icon-only button has an accessible name.
 - Severity is conveyed by icon and word, never color alone.
 
 ## 12. Do not
 
 - Do not use a shield, lock or glowing orb as imagery.
-- Do not use gradients, glows, drop shadows or frosted glass unless the references review changes this file.
+- Do not use decorative gradients, glows, drop shadows or frosted glass. Section 6 names the only allowed layering and depth.
 - Do not use all-caps labels, eyebrow text above headings, or numbered markers outside the wizard.
 - Do not make a grid of identical rounded cards.
 - Do not put one word of a headline in a different color or weight.
@@ -249,3 +271,5 @@ When paused, the whole page shows a `--blocked` band: `Agent paused. No payments
 4. The page works at 375px wide and with the keyboard only.
 5. Loading, error and empty states exist.
 6. Nothing in section 12 appears.
+7. Every data surface distinguishes loading, unavailable and empty. Unavailable is never shown as zero.
+8. Every sidebar item leads to a real page, section or tab, and no control is inert.

@@ -19,6 +19,9 @@ export const BACKEND_URL = (
   process.env.NEXT_PUBLIC_BACKEND_URL?.trim() || LOCAL_BACKEND
 ).replace(/\/+$/, "");
 
+/** Google OAuth client ID for Sign in with Google */
+export const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim() ?? "";
+
 // Hard rule: SpendGuard never talks to mainnet. Fail loudly at load instead of
 // silently pointing the dashboard at real funds.
 if (/mainnet/i.test(RPC_URL)) {

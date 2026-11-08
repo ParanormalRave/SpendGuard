@@ -3,8 +3,14 @@ import express, { type NextFunction, type Request, type Response } from "express
 import { PublicKey } from "@solana/web3.js";
 import { loadConfig } from "./config";
 import { getRpcHostname } from "./chain/connection";
+import { loadKeypair } from "./chain/keypairs";
 import { fetchPolicy, getVaultBalance, type PolicyAccount } from "./chain/policy";
-import { closeDb, getDb, initDb, readAttempts, readPayments } from "./db";
+import { closeDb, deleteUser, getDb, getUserByWallet, initDb, listAlerts, readAttempts, readPayments, updatePreferences, upsertUser } from "./db";
+import { createNonce, getNonceMessage, consumeNonce } from "./auth/nonce";
+import { verifyWalletSignature } from "./auth/wallet";
+import { verifyGoogleIdToken } from "./auth/google";
+import { issueJwt, requireAuth } from "./auth/jwt";
+import { buildAlertEmail, sendEmail } from "./notify/email";
 import { API_SCENARIOS, getScenarioTask, loadServices, runAgent } from "./agent";
 import { startWatcher } from "./watcher";
 
@@ -85,7 +91,13 @@ export function createApp(): express.Express {
   const app = express();
 
   app.disable("x-powered-by");
-  app.use(cors({ origin: config.frontendOrigin }));
+  app.use(
+    cors({
+      origin: config.frontendOrigin,
+      allowedHeaders: ["Authorization", "Content-Type"],
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    }),
+  );
   app.use(express.json({ limit: "100kb" }));
 
   // ---------------------------------------------------------------- health
@@ -98,6 +110,27 @@ export function createApp(): express.Express {
       rpc: getRpcHostname(),
       programId: config.programId.toBase58(),
     });
+  });
+
+  // ---------------------------------------------------------------- public config (agent address only)
+
+  app.get("/config/public", (_req, res) => {
+    try {
+      const kp = loadKeypair(config.agentKeypairPath);
+      const agentPublicKey = kp.publicKey.toBase58();
+      if (!agentPublicKey) throw new Error("Invalid agent key");
+      let policyAddress: string | null = null;
+      if (config.policyAddress) {
+        try {
+          policyAddress = new PublicKey(config.policyAddress).toBase58();
+        } catch {
+          policyAddress = null;
+        }
+      }
+      res.json({ agentPublicKey, policyAddress });
+    } catch {
+      res.status(503).json({ error: "Agent not configured" });
+    }
   });
 
   // ---------------------------------------------------------------- services
@@ -224,6 +257,218 @@ export function createApp(): express.Express {
   app.get("/agent/attempts", (req, res) => {
     res.json(readAttempts(getDb(), parseLimit(req.query.limit)));
   });
+
+  // ---------------------------------------------------------------- alerts
+
+  app.get("/alerts", (req, res) => {
+    const BASE58_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+
+    const rawPolicy = req.query.policy;
+    const rawOwner = req.query.owner;
+    const rawLimit = req.query.limit;
+
+    let policy: string | undefined;
+    if (rawPolicy !== undefined) {
+      if (typeof rawPolicy !== "string") {
+        res.status(400).json({ error: 'Query param "policy" must be a string' });
+        return;
+      }
+      const trimmed = rawPolicy.trim();
+      if (trimmed.length === 0) {
+        res.status(400).json({ error: 'Query param "policy" must not be empty' });
+        return;
+      }
+      if (!BASE58_RE.test(trimmed)) {
+        res.status(400).json({ error: 'Query param "policy" must be a base58 public key (32-44 chars, [1-9A-HJ-NP-Za-km-z])' });
+        return;
+      }
+      policy = trimmed;
+    }
+
+    let owner: string | undefined;
+    if (rawOwner !== undefined) {
+      if (typeof rawOwner !== "string") {
+        res.status(400).json({ error: 'Query param "owner" must be a string' });
+        return;
+      }
+      const trimmed = rawOwner.trim();
+      if (trimmed.length === 0) {
+        res.status(400).json({ error: 'Query param "owner" must not be empty' });
+        return;
+      }
+      if (!BASE58_RE.test(trimmed)) {
+        res.status(400).json({ error: 'Query param "owner" must be a base58 public key (32-44 chars, [1-9A-HJ-NP-Za-km-z])' });
+        return;
+      }
+      owner = trimmed;
+    }
+
+    let limit = 50;
+    if (rawLimit !== undefined) {
+      if (typeof rawLimit !== "string") {
+        res.status(400).json({ error: 'Query param "limit" must be an integer between 1 and 200' });
+        return;
+      }
+      const trimmed = rawLimit.trim();
+      const n = Number(trimmed);
+      if (!Number.isInteger(n) || n < 1 || n > 200) {
+        res.status(400).json({ error: 'Query param "limit" must be an integer between 1 and 200' });
+        return;
+      }
+      limit = n;
+    }
+
+    const alerts = listAlerts(getDb(), { policy, owner, limit });
+    res.json({ alerts });
+  });
+
+  // ---------------------------------------------------------------- auth
+
+  app.get("/auth/nonce", (req, res) => {
+    const raw = req.query.wallet;
+    if (typeof raw !== "string" || !raw.trim()) {
+      res.status(400).json({ error: "wallet is required" });
+      return;
+    }
+    const wallet = raw.trim();
+    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(wallet)) {
+      res.status(400).json({ error: "Invalid wallet" });
+      return;
+    }
+    try {
+      const { nonce, message, expiresAt } = createNonce(getDb(), wallet);
+      res.json({ nonce, message, expiresAt });
+    } catch (e) {
+      res.status(500).json({ error: "Failed to create nonce" });
+    }
+  });
+
+  app.post(
+    "/auth/link",
+    asyncHandler(async (req, res) => {
+      const { idToken, wallet, signature, nonce } = req.body as {
+        idToken?: unknown;
+        wallet?: unknown;
+        signature?: unknown;
+        nonce?: unknown;
+      };
+      if (typeof idToken !== "string" || !idToken.trim() || typeof wallet !== "string" || !wallet.trim() || typeof signature !== "string" || !signature.trim() || typeof nonce !== "string" || !nonce.trim()) {
+        res.status(400).json({ error: "idToken, wallet, signature and nonce are required" });
+        return;
+      }
+      const w = wallet.trim();
+      const n = nonce.trim();
+      const sig = signature.trim();
+      if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(w)) {
+        res.status(400).json({ error: "Invalid wallet" });
+        return;
+      }
+      // Config checks before burning nonce
+      const jwtSecret = loadConfig().jwtSecret;
+      if (!jwtSecret || jwtSecret.length < 32) {
+        res.status(503).json({ error: "Auth is not configured" });
+        return;
+      }
+      if (!loadConfig().googleClientId) {
+        res.status(503).json({ error: "Google sign-in is not configured" });
+        return;
+      }
+      let google: { email: string; googleSub: string };
+      try {
+        google = await verifyGoogleIdToken(idToken.trim());
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes("not configured")) {
+          res.status(503).json({ error: msg });
+          return;
+        }
+        res.status(401).json({ error: "Invalid Google token" });
+        return;
+      }
+      const storedMessage = getNonceMessage(getDb(), w, n);
+      if (!storedMessage) {
+        res.status(400).json({ error: "Invalid or expired nonce" });
+        return;
+      }
+      if (!verifyWalletSignature(w, storedMessage, sig)) {
+        res.status(401).json({ error: "Invalid signature" });
+        return;
+      }
+      const consumed = consumeNonce(getDb(), w, n);
+      if (!consumed) {
+        res.status(400).json({ error: "Invalid or expired nonce" });
+        return;
+      }
+      upsertUser(getDb(), { wallet: w, email: google.email, googleSub: google.googleSub });
+      const token = issueJwt({ wallet: w, email: google.email, googleSub: google.googleSub });
+      res.json({ token, email: google.email });
+    }),
+  );
+
+  app.get("/me", requireAuth, (req, res) => {
+    const user = (req as unknown as { user: { wallet: string } }).user;
+    const row = getUserByWallet(getDb(), user.wallet);
+    if (!row) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json({ wallet: row.wallet, email: row.email, emailEnabled: !!row.email_enabled, minSeverity: row.min_severity });
+  });
+
+  app.put("/me/preferences", requireAuth, (req, res) => {
+    const user = (req as unknown as { user: { wallet: string } }).user;
+    const { emailEnabled, minSeverity } = req.body as { emailEnabled?: unknown; minSeverity?: unknown };
+    if (emailEnabled !== undefined && typeof emailEnabled !== "boolean") {
+      res.status(400).json({ error: "emailEnabled must be boolean" });
+      return;
+    }
+    if (minSeverity !== undefined && !["info", "warning", "critical"].includes(minSeverity as string)) {
+      res.status(400).json({ error: "minSeverity must be info, warning or critical" });
+      return;
+    }
+    const updated = updatePreferences(getDb(), user.wallet, { emailEnabled: emailEnabled as boolean | undefined, minSeverity: minSeverity as "info" | "warning" | "critical" | undefined });
+    if (!updated) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json({ wallet: updated.wallet, email: updated.email, emailEnabled: !!updated.email_enabled, minSeverity: updated.min_severity });
+  });
+
+  app.delete("/me", requireAuth, (req, res) => {
+    const user = (req as unknown as { user: { wallet: string } }).user;
+    deleteUser(getDb(), user.wallet);
+    res.json({ ok: true });
+  });
+
+  const notifyTestLast = new Map<string, number>();
+  app.post("/notifications/test", requireAuth, asyncHandler(async (req, res) => {
+    const user = (req as unknown as { user: { wallet: string } }).user;
+    const now = Date.now();
+    const last = notifyTestLast.get(user.wallet) ?? 0;
+    if (now - last < 30_000) {
+      res.status(429).json({ error: "Rate limited: try again in 30 seconds" });
+      return;
+    }
+    notifyTestLast.set(user.wallet, now);
+    const row = getUserByWallet(getDb(), user.wallet);
+    if (!row) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    if (!row.email_enabled) {
+      res.status(400).json({ error: "Email is disabled" });
+      return;
+    }
+    try {
+      const alert = { title: "Test email from SpendGuard", message: "This is a test alert email.", type: "POLICY_RESUMED", severity: row.min_severity as string, policy: "test", txSignature: null, createdAt: new Date().toISOString(), data: {} } as unknown as Parameters<typeof buildAlertEmail>[0];
+      const { subject, html } = buildAlertEmail(alert);
+      await sendEmail(row.email, subject, html);
+      res.json({ ok: true });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      res.status(502).json({ error: msg });
+    }
+  }));
 
   // ---------------------------------------------------------------- fallbacks
 

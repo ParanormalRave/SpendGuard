@@ -11,18 +11,21 @@
   },
   "dependencies": {
     "@anchor-lang/core": "^1.2.2",
+    "@react-oauth/google": "^0.13.5",
     "@solana/wallet-adapter-base": "^0.9.28",
     "@solana/wallet-adapter-phantom": "^0.9.30",
     "@solana/wallet-adapter-react": "^0.15.40",
     "@solana/wallet-adapter-react-ui": "^0.9.40",
     "@solana/wallet-adapter-solflare": "^0.6.34",
     "@solana/web3.js": "^1.99.0",
+    "bn.js": "^5.2.3",
     "next": "16.4.5",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
+    "@types/bn.js": "^5.1.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

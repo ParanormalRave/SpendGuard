@@ -6,7 +6,8 @@ import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { SolflareWalletAdapter } from "@solana/wallet-adapter-solflare";
 import { useMemo, type ReactNode } from "react";
-import { RPC_URL } from "@/lib/env";
+import { GoogleOAuthProvider } from "@react-oauth/google";
+import { GOOGLE_CLIENT_ID, RPC_URL } from "@/lib/env";
 
 /**
  * Client-side Solana context for the whole app: one devnet connection, the two
@@ -22,11 +23,15 @@ export function Providers({ children }: { children: ReactNode }) {
     [],
   );
 
-  return (
+  const inner = (
     <ConnectionProvider endpoint={RPC_URL} config={{ commitment: "confirmed" }}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>{children}</WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
   );
+
+  if (!GOOGLE_CLIENT_ID) return inner;
+
+  return <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>{inner}</GoogleOAuthProvider>;
 }

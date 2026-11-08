@@ -134,6 +134,7 @@ function openDatabase(dbPath: string): Database.Database {
     CREATE TABLE IF NOT EXISTS nonces (
       wallet TEXT NOT NULL,
       nonce TEXT NOT NULL,
+      message TEXT NOT NULL DEFAULT '',
       expires_at INTEGER NOT NULL,
       PRIMARY KEY (wallet, nonce)
     );
@@ -189,6 +190,7 @@ function openDatabase(dbPath: string): Database.Database {
   `);
 
   migrateAlerts(instance);
+  migrateNonces(instance);
   return instance;
 }
 
@@ -212,6 +214,15 @@ function migrateAlerts(instance: Database.Database): void {
   instance.exec(
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_dedupe_key ON alerts(dedupe_key)",
   );
+}
+
+function migrateNonces(instance: Database.Database): void {
+  const cols = instance.prepare("PRAGMA table_info(nonces)").all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === "message")) {
+    instance.exec("ALTER TABLE nonces ADD COLUMN message TEXT NOT NULL DEFAULT ''");
+  }
+  // Ensure users defaults match spec: new users default to warning (migrate old dbs with info)
+  // No data migration needed; upsertUser will set correct default.
 }
 
 /**
@@ -498,4 +509,97 @@ function toAlertInput(row: AlertRow): AlertInput {
     dedupeKey: row.dedupe_key,
     createdAt: new Date(row.created_at).toISOString(),
   };
+}
+
+// ---------------------------------------------------------------- nonces (M7)
+
+export interface NonceRow {
+  wallet: string;
+  nonce: string;
+  message: string;
+  expires_at: number;
+}
+
+export function createNonce(
+  db: Database.Database,
+  wallet: string,
+  nowMs: number = Date.now(),
+): { nonce: string; message: string; expiresAt: number } {
+  const nonce = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  const expiresAt = nowMs + 300_000;
+  const message = `Sign this message to link your wallet to SpendGuard.\n\nWallet: ${wallet}\nNonce: ${nonce}\nExpires: ${new Date(expiresAt).toISOString()}`;
+  db.prepare("INSERT INTO nonces (wallet, nonce, message, expires_at) VALUES (?, ?, ?, ?)").run(wallet, nonce, message, expiresAt);
+  return { nonce, message, expiresAt };
+}
+
+export function consumeNonce(
+  db: Database.Database,
+  wallet: string,
+  nonce: string,
+  nowMs: number = Date.now(),
+): boolean {
+  const row = db.prepare("SELECT wallet, nonce, message, expires_at FROM nonces WHERE wallet = ? AND nonce = ?").get(wallet, nonce) as NonceRow | undefined;
+  if (!row) return false;
+  if (row.expires_at <= nowMs) {
+    db.prepare("DELETE FROM nonces WHERE wallet = ? AND nonce = ?").run(wallet, nonce);
+    return false;
+  }
+  const del = db.prepare("DELETE FROM nonces WHERE wallet = ? AND nonce = ?").run(wallet, nonce);
+  return del.changes > 0;
+}
+
+export function getNonceMessage(db: Database.Database, wallet: string, nonce: string): string | null {
+  const row = db.prepare("SELECT message FROM nonces WHERE wallet = ? AND nonce = ?").get(wallet, nonce) as { message: string } | undefined;
+  return row?.message ?? null;
+}
+
+// Aliases for AGENTS.md naming
+export const saveNonce = createNonce;
+
+// ---------------------------------------------------------------- users (M7)
+
+export interface UserRow {
+  id: number;
+  email: string;
+  google_sub: string;
+  wallet: string;
+  email_enabled: number;
+  min_severity: string;
+  created_at: number;
+}
+
+export function upsertUser(
+  db: Database.Database,
+  user: { wallet: string; email: string; googleSub: string },
+): UserRow {
+  db.prepare(
+    `INSERT INTO users (email, google_sub, wallet, email_enabled, min_severity, created_at)
+     VALUES (?, ?, ?, 1, 'warning', ?)
+     ON CONFLICT(wallet) DO UPDATE SET email = excluded.email, google_sub = excluded.google_sub`,
+  ).run(user.email, user.googleSub, user.wallet, Date.now());
+  const row = db.prepare("SELECT * FROM users WHERE wallet = ?").get(user.wallet) as UserRow;
+  return row;
+}
+
+export function getUserByWallet(db: Database.Database, wallet: string): UserRow | undefined {
+  return db.prepare("SELECT * FROM users WHERE wallet = ?").get(wallet) as UserRow | undefined;
+}
+
+export function updatePreferences(
+  db: Database.Database,
+  wallet: string,
+  prefs: { emailEnabled?: boolean; minSeverity?: AlertSeverity },
+): UserRow | undefined {
+  const existing = getUserByWallet(db, wallet);
+  if (!existing) return undefined;
+  const emailEnabled = prefs.emailEnabled !== undefined ? (prefs.emailEnabled ? 1 : 0) : existing.email_enabled;
+  const minSeverity = prefs.minSeverity ?? (existing.min_severity as AlertSeverity);
+  db.prepare("UPDATE users SET email_enabled = ?, min_severity = ? WHERE wallet = ?").run(emailEnabled, minSeverity, wallet);
+  return getUserByWallet(db, wallet);
+}
+
+export function deleteUser(db: Database.Database, wallet: string): boolean {
+  const r = db.prepare("DELETE FROM users WHERE wallet = ?").run(wallet);
+  db.prepare("DELETE FROM nonces WHERE wallet = ?").run(wallet);
+  return r.changes > 0;
 }
