@@ -170,6 +170,13 @@ body {
   fill: var(--muted);
 }
 
+/* Landing hero — visible keyboard focus uses the hero accent. Scoped so the
+   rest of the app keeps its --leash focus color and backend flows are untouched. */
+.landing-hero :focus-visible {
+  outline: 2px solid #34e08f;
+  outline-offset: 2px;
+}
+
 /* docs/design.md section 9: respect prefers-reduced-motion. */
 @media (prefers-reduced-motion: reduce) {
   *,

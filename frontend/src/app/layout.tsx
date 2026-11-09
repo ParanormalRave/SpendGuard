@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, Instrument_Sans, JetBrains_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Instrument_Sans, Inter, JetBrains_Mono, Schibsted_Grotesk } from "next/font/google";
 import "@solana/wallet-adapter-react-ui/styles.css";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
@@ -21,6 +21,27 @@ const jetbrains = JetBrains_Mono({
   subsets: ["latin"],
 });
 
+// Landing hero fonts per spec — loaded alongside the existing app fonts.
+// The landing page uses these variables explicitly so dashboard/activity
+// typography is not affected and backend wiring stays intact.
+const schibsted = Schibsted_Grotesk({
+  variable: "--font-schibsted",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const jetbrainsLanding = JetBrains_Mono({
+  variable: "--font-jetbrains-landing",
+  subsets: ["latin"],
+  weight: ["400", "500"],
+});
+
+const interLanding = Inter({
+  variable: "--font-inter-landing",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+});
+
 export const metadata: Metadata = {
   title: "SpendGuard",
   description: "Give your AI agent a wallet it can't abuse. Devnet only.",
@@ -30,7 +51,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${bricolage.variable} ${instrument.variable} ${jetbrains.variable} h-full antialiased`}
+      className={`${bricolage.variable} ${instrument.variable} ${jetbrains.variable} ${schibsted.variable} ${jetbrainsLanding.variable} ${interLanding.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         <Providers>{children}</Providers>
