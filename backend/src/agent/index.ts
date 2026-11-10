@@ -4,7 +4,7 @@ import { loadConfig } from "../config";
 import { fetchPolicy } from "../chain/policy";
 import { initDb } from "../db";
 import { buildSystemPrompt } from "./prompt";
-import { getScenarioTask } from "./scenarios";
+import { buildScenarioTask } from "./scenarios";
 import { runToolLoop, type ToolLoopClient } from "./loop";
 import {
   TOOL_DEFS,
@@ -20,6 +20,8 @@ export { buildSystemPrompt } from "./prompt";
 export { findService, loadServices, type Service } from "./services";
 export {
   API_SCENARIOS,
+  buildScenarioTask,
+  computeScenarioAmounts,
   DEFAULT_CUSTOM_TASK,
   FIXED_SCENARIOS,
   getScenarioTask,
@@ -77,14 +79,14 @@ export async function runAgent(scenario: string, task?: string): Promise<AgentRu
   // Ensure the SQLite file exists before any logAttempt.
   initDb();
 
-  const taskText = getScenarioTask(scenario, task);
-
-  // Build the system prompt from the live policy when possible.
+  // Build the system prompt and scenario task from the live policy when possible.
+  // The policy is fetched once and reused — no second fetch.
   let systemPrompt: string;
+  let fetchedPolicy: Awaited<ReturnType<typeof fetchPolicy>> | null = null;
   if (config.policyAddress) {
     try {
-      const policy = await fetchPolicy(config.policyAddress);
-      systemPrompt = buildSystemPrompt(policy);
+      fetchedPolicy = await fetchPolicy(config.policyAddress);
+      systemPrompt = buildSystemPrompt(fetchedPolicy);
     } catch {
       // Policy fetch can fail (devnet lag, wrong address). Still let the model
       // try; the tool handlers will surface the real error.
@@ -92,6 +94,17 @@ export async function runAgent(scenario: string, task?: string): Promise<AgentRu
     }
   } else {
     systemPrompt = buildSystemPrompt(null);
+  }
+
+  let taskText: string;
+  if (scenario === "custom") {
+    taskText = buildScenarioTask(scenario, fetchedPolicy, task);
+  } else {
+    // Fixed scenarios require a policy to compute amounts; validate early before spending API tokens.
+    if (fetchedPolicy === null) {
+      throw new Error("POLICY_ADDRESS is required to run this scenario");
+    }
+    taskText = buildScenarioTask(scenario, fetchedPolicy, task);
   }
 
   const attempts: AgentAttempt[] = [];

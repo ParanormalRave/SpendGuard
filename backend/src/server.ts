@@ -11,7 +11,7 @@ import { verifyWalletSignature } from "./auth/wallet";
 import { verifyGoogleIdToken } from "./auth/google";
 import { issueJwt, requireAuth } from "./auth/jwt";
 import { buildAlertEmail, sendEmail } from "./notify/email";
-import { API_SCENARIOS, getScenarioTask, loadServices, runAgent } from "./agent";
+import { API_SCENARIOS, loadServices, runAgent } from "./agent";
 import { startWatcher } from "./watcher";
 
 /**
@@ -221,11 +221,7 @@ export function createApp(): express.Express {
         return;
       }
       if (!(API_SCENARIOS as readonly string[]).includes(scenario)) {
-        const reason =
-          scenario === "unusual"
-            ? 'Scenario "unusual" is implemented in M8'
-            : `Unknown scenario "${scenario}". Supported: ${API_SCENARIOS.join(", ")}`;
-        res.status(400).json({ error: reason });
+        res.status(400).json({ error: `Unknown scenario "${scenario}". Supported: ${API_SCENARIOS.join(", ")}` });
         return;
       }
 
@@ -244,8 +240,6 @@ export function createApp(): express.Express {
 
       agentRunning = true;
       try {
-        // Validate the scenario text before spending API tokens.
-        getScenarioTask(scenario, task);
         const result = await runAgent(scenario, typeof task === "string" ? task : undefined);
         res.json(result);
       } finally {
