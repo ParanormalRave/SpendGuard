@@ -574,7 +574,7 @@ export function ActivityClient() {
               { id: "normal", label: "Normal", desc: "Valid payments within limits." },
               { id: "overspend", label: "Overspend", desc: "Tries to exceed per-tx and window limits." },
               { id: "injection", label: "Injection", desc: "Prompt-injected rogue-service payment." },
-              { id: "unusual", label: "Unusual", desc: "Several small then one large payment.", disabled: true, note: "Coming soon" },
+              { id: "unusual", label: "Unusual", desc: "Several small then one large payment.", disabled: false, note: "" },
             ].map((s) => {
               const isRunning = running === s.id;
               const disabled = !!s.disabled || !!running;
@@ -584,7 +584,7 @@ export function ActivityClient() {
                   type="button"
                   disabled={disabled}
                   onClick={() => handleRun(s.id)}
-                  className={`flex min-h-[64px] flex-col items-start justify-center rounded-control border px-4 py-3 text-left ${
+                  className={`flex min-h-16 flex-col items-start justify-center rounded-control border px-4 py-3 text-left ${
                     disabled
                       ? "cursor-not-allowed border-line bg-panel/50 opacity-60"
                       : "border-line bg-panel hover:border-leash/50"
@@ -602,7 +602,7 @@ export function ActivityClient() {
           {runError ? <p className="rounded-control border border-blocked/30 bg-blocked-wash px-3 py-2 text-[0.8125rem] text-blocked">{runError}</p> : null}
           {runResult ? (
             <div className="space-y-3 rounded-control border border-line bg-surface-sunken p-3">
-              <p className="text-[0.9375rem] font-semibold text-paper">Agent: {runResult.message || "(no message)"}</p>
+              <p className="wrap-break-word whitespace-pre-wrap text-[0.9375rem] font-semibold text-paper">Agent: {runResult.message || "(no message)"}</p>
               {runResult.reason ? <p className="text-[0.8125rem] text-muted">Reason: {runResult.reason}</p> : null}
               <p className="text-[0.8125rem] text-muted">Scenario {runResult.scenario} · {runResult.attempts.length} attempts</p>
               <ul className="divide-y divide-line">
