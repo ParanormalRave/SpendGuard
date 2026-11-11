@@ -71,8 +71,8 @@ Tick these off as they are built.
 - [x] Chain watcher that turns program events into alerts
 - [x] Anomaly detection: new recipient, unusually large amount, near the window limit
 - [x] Keeper that executes due withdrawals automatically
-- [ ] Sign in with Google, linked to the owner's wallet by a signed message
-- [ ] Email alerts
+- [x] Sign in with Google, linked to the owner's wallet by a signed message
+- [x] Email alerts
 
 **Frontend**
 - [x] Create-policy wizard with a clear "this cannot be changed" review step
@@ -80,7 +80,7 @@ Tick these off as they are built.
 - [x] Pending withdrawal card with countdown and cancel button
 - [x] Alert bell and critical alert banner
 - [x] Activity page: payments, blocked attempts, scenario runner
-- [ ] Notification settings (Google sign-in, email on or off)
+- [x] Notification settings (Google sign-in, email on or off)
 
 ## How alerts work
 
