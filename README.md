@@ -57,29 +57,29 @@ A normal agent payment costs the base fee of 5,000 lamports (0.000005 SOL) per s
 Tick these off as they are built.
 
 **Smart contract**
-- [ ] Create a policy: per-tx limit, window limit, window length, withdrawal delay, recipient allowlist
-- [ ] Fund the vault
-- [ ] Agent payments enforced on-chain (per-tx limit, window limit, allowlist)
-- [ ] Owner kill switch (pause / resume)
-- [ ] Add recipients later (add-only, recipients are never removed)
-- [ ] Delayed withdrawals: request, cancel, execute after the delay
-- [ ] Limits and window length are fixed after creation
+- [x] Create a policy: per-tx limit, window limit, window length, withdrawal delay, recipient allowlist
+- [x] Fund the vault
+- [x] Agent payments enforced on-chain (per-tx limit, window limit, allowlist)
+- [x] Owner kill switch (pause / resume)
+- [x] Add recipients later (add-only, recipients are never removed)
+- [x] Delayed withdrawals: request, cancel, execute after the delay
+- [x] Limits and window length are fixed after creation
 
 **Backend**
-- [ ] AI agent (LLM via Groq) that decides what to buy and pays through the program
-- [ ] Attempt log (successful and rejected)
-- [ ] Chain watcher that turns program events into alerts
-- [ ] Anomaly detection: new recipient, unusually large amount, near the window limit
-- [ ] Keeper that executes due withdrawals automatically
+- [x] AI agent (LLM via Groq) that decides what to buy and pays through the program
+- [x] Attempt log (successful and rejected)
+- [x] Chain watcher that turns program events into alerts
+- [x] Anomaly detection: new recipient, unusually large amount, near the window limit
+- [x] Keeper that executes due withdrawals automatically
 - [ ] Sign in with Google, linked to the owner's wallet by a signed message
 - [ ] Email alerts
 
 **Frontend**
-- [ ] Create-policy wizard with a clear "this cannot be changed" review step
-- [ ] Dashboard with limits, spent progress, vault balance, status, pause button
-- [ ] Pending withdrawal card with countdown and cancel button
-- [ ] Alert bell and critical alert banner
-- [ ] Activity page: payments, blocked attempts, scenario runner
+- [x] Create-policy wizard with a clear "this cannot be changed" review step
+- [x] Dashboard with limits, spent progress, vault balance, status, pause button
+- [x] Pending withdrawal card with countdown and cancel button
+- [x] Alert bell and critical alert banner
+- [x] Activity page: payments, blocked attempts, scenario runner
 - [ ] Notification settings (Google sign-in, email on or off)
 
 ## How alerts work
