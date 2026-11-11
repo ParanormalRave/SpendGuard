@@ -1,3 +1,4 @@
+import "dotenv/config";
 import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { PublicKey } from "@solana/web3.js";

@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { sendEmail } from "../notify/email";
 
 const to = process.argv[2];

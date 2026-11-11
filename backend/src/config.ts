@@ -114,7 +114,7 @@ export function loadConfig(): AppConfig {
     smtpHost: optionalEnv("SMTP_HOST"),
     smtpPort,
     smtpUser: optionalEnv("SMTP_USER"),
-    smtpPass: optionalEnv("SMTP_PASS"),
+    smtpPass: optionalEnv("SMTP_PASS")?.replace(/\s+/g, ""),
     emailFrom: optionalEnv("EMAIL_FROM"),
     unusualMultiplier,
     unusualMinHistory,
@@ -126,7 +126,14 @@ export function loadConfig(): AppConfig {
 
 /** Returns the trimmed value, treating an empty string as "not set". */
 function readEnv(key: string): string | undefined {
-  const value = process.env[key]?.trim();
+  let value = process.env[key]?.trim().replace(/\r/g, "");
+  if (value !== undefined && value.length >= 2) {
+    const first = value[0];
+    const last = value[value.length - 1];
+    if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+      value = value.slice(1, -1).trim().replace(/\r/g, "");
+    }
+  }
   return value === undefined || value.length === 0 ? undefined : value;
 }
 
