@@ -11,9 +11,12 @@ import {
   fetchAttempts,
   fetchConfigPublic,
   fetchPayments,
+  normalizeAttempt,
   runScenario,
+  toBigIntSafe,
   type AttemptDto,
   type ConfigPublicDto,
+  type NormalizedAttempt,
   type PaymentDto,
   type RunAgentResult,
 } from "@/lib/api";
@@ -116,7 +119,7 @@ export function ActivityClient() {
   // Data for tabs — filtered strictly by active policy
   const [payments, setPayments] = useState<PaymentDto[] | null>(null);
   const [paymentsError, setPaymentsError] = useState<string | null>(null);
-  const [attempts, setAttempts] = useState<AttemptDto[] | null>(null);
+  const [attempts, setAttempts] = useState<NormalizedAttempt[] | null>(null);
   const [attemptsError, setAttemptsError] = useState<string | null>(null);
   const [alertsUnavailable, setAlertsUnavailable] = useState<string | null>(null);
 
@@ -166,7 +169,7 @@ export function ActivityClient() {
     }
     try {
       const data = await fetchAttempts(100);
-      setAttempts(data);
+      setAttempts(data.map(normalizeAttempt));
       setAttemptsError(null);
     } catch (e) {
       setAttemptsError(e instanceof Error ? e.message : String(e));
@@ -238,7 +241,7 @@ export function ActivityClient() {
       try {
         const data = await fetchAttempts(100);
         if (cancelled) return;
-        setAttempts(data);
+        setAttempts(data.map(normalizeAttempt));
         setAttemptsError(null);
       } catch (e) {
         if (!cancelled) setAttemptsError(e instanceof Error ? e.message : String(e));
@@ -255,7 +258,7 @@ export function ActivityClient() {
   const filteredAttempts = useMemo(() => {
     if (!attempts) return null;
     const addr = activePolicy?.address.toBase58() ?? activeAddr ?? resolvedActiveAddr;
-    if (!addr) return [] as AttemptDto[];
+    if (!addr) return [] as NormalizedAttempt[];
     // Never display entries without reliable policy association
     return attempts.filter((a) => a.policy && a.policy === addr);
   }, [attempts, activePolicy, activeAddr, resolvedActiveAddr]);
@@ -449,7 +452,7 @@ export function ActivityClient() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="text-[0.9375rem] text-paper">
-                        Payment of {lamportsToSol(BigInt(p.amountLamports))} SOL to {shortAddr(p.recipient)}
+                        Payment of {(() => { const v = toBigIntSafe((p as unknown as Record<string, unknown>).amountLamports ?? (p as unknown as Record<string, unknown>).amount_lamports); return v !== null ? `${lamportsToSol(v)} SOL` : "unknown amount"; })()} to {shortAddr(p.recipient)}
                       </p>
                       <p className="text-[0.8125rem] text-muted">{new Date(p.timestamp * 1000).toLocaleString()}</p>
                     </div>
@@ -483,17 +486,17 @@ export function ActivityClient() {
               <>
                 <ul className="divide-y divide-line">
                   {blockedAttempts.map((a) => (
-                    <li key={`${a.id}-${a.timestamp}`} className="flex items-start gap-3 py-3">
+                    <li key={`${a.id ?? a.signature ?? a.timestamp}-${a.timestamp}`} className="flex items-start gap-3 py-3">
                       <span className="mt-0.5 text-blocked">
                         <BlockIcon size={18} />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[0.9375rem] text-paper">{a.error_code ? explainError(a.error_code) : "Blocked by spending rules"}</p>
+                        <p className="text-[0.9375rem] text-paper">{a.errorCode ? explainError(a.errorCode) : "Blocked by spending rules"}</p>
                         <p className="text-[0.8125rem] text-muted">
-                          {lamportsToSol(BigInt(a.amount_lamports))} SOL to {shortAddr(a.recipient)} · {a.scenario}
+                          {a.amountLamports !== null ? `${lamportsToSol(a.amountLamports)} SOL` : "unknown amount"} to {shortAddr(a.recipient)} · {a.scenario}
                           {a.reason ? ` · ${a.reason}` : ""}
                         </p>
-                        <p className="text-[0.8125rem] text-muted">{new Date(a.timestamp).toLocaleString()}</p>
+                        <p className="text-[0.8125rem] text-muted">{a.timestamp !== null ? new Date(a.timestamp as number).toLocaleString() : ""}</p>
                       </div>
                       <span className="shrink-0 rounded-pill bg-blocked-wash px-2 py-0.5 text-[0.6875rem] font-semibold text-blocked">Blocked</span>
                       {a.signature ? (
@@ -603,14 +606,16 @@ export function ActivityClient() {
               {runResult.reason ? <p className="text-[0.8125rem] text-muted">Reason: {runResult.reason}</p> : null}
               <p className="text-[0.8125rem] text-muted">Scenario {runResult.scenario} · {runResult.attempts.length} attempts</p>
               <ul className="divide-y divide-line">
-                {runResult.attempts.map((a, idx) => (
-                  <li key={`${a.signature ?? idx}-${a.timestamp}-${idx}`} className="flex items-start gap-2 py-2">
+                {runResult.attempts.map((raw, idx) => {
+                  const a = normalizeAttempt(raw);
+                  return (
+                  <li key={`${a.signature ?? a.id ?? idx}-${a.timestamp}-${idx}`} className="flex items-start gap-2 py-2">
                     <span className={a.status === "success" ? "text-allowed" : a.status === "rejected" ? "text-blocked" : "text-caution"}>
                       {a.status === "success" ? <CheckIcon size={14} /> : a.status === "rejected" ? <BlockIcon size={14} /> : <InfoIcon size={14} />}
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="text-[0.8125rem] text-paper">
-                        {a.status === "success" ? "Allowed" : a.status === "rejected" ? (a.error_code ? explainError(a.error_code) : "Rejected") : a.error_code ? explainError(a.error_code) : a.status} — {lamportsToSol(BigInt(a.amount_lamports))} SOL to {shortAddr(a.recipient)}
+                        {a.status === "success" ? "Allowed" : a.status === "rejected" ? (a.errorCode ? explainError(a.errorCode) : "Rejected") : a.errorCode ? explainError(a.errorCode) : a.status} — {a.amountLamports !== null ? `${lamportsToSol(a.amountLamports)} SOL` : "unknown amount"} to {shortAddr(a.recipient)}
                       </p>
                       {a.reason ? <p className="text-[0.6875rem] text-muted">{a.reason}</p> : null}
                       {a.signature ? (
@@ -621,7 +626,8 @@ export function ActivityClient() {
                     </div>
                     <span className="shrink-0 rounded-pill bg-panel px-2 py-0.5 text-[0.6875rem] font-semibold text-muted">{a.status}</span>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </div>
           ) : null}

@@ -20,7 +20,7 @@ export function HeroSection() {
 
   return (
     <section className="bg-ink py-12 sm:py-16">
-      <div className="mx-auto grid w-full max-w-[1120px] gap-10 px-4 sm:gap-12 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:gap-16 lg:py-20">
+      <div className="mx-auto grid w-full max-w-280 gap-10 px-4 sm:gap-12 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:gap-16 lg:py-20">
         <div className="flex flex-col">
           <h1 className="max-w-[14ch] font-display text-[2.25rem] font-semibold leading-[0.95] tracking-[-0.02em] text-paper sm:text-[3rem] lg:text-[3.25rem]">Give your AI agent a wallet it can&apos;t abuse.</h1>
           <p className="mt-5 max-w-[42ch] text-[1.0625rem] leading-7 text-muted sm:mt-6 sm:text-[1.1875rem] sm:leading-8">Set spending rules once. Solana enforces them on every payment.</p>
@@ -31,7 +31,7 @@ export function HeroSection() {
           <p className="mt-4 text-[0.8125rem] leading-5 text-muted">Devnet only. No real funds. Connect Phantom or Solflare to get started.</p>
         </div>
         <div className="flex justify-center lg:justify-end">
-          <div className="w-full max-w-[420px] rounded-panel border border-line bg-panel p-6 shadow-panel sm:p-7">
+          <div className="w-full max-w-105 rounded-panel border border-line bg-panel p-6 shadow-panel sm:p-7">
             <div className="mb-3"><span className="inline-flex rounded-pill border border-line bg-surface-sunken px-2.5 py-1 text-[0.6875rem] font-semibold tracking-wide text-muted">Demo data — not your wallet</span></div>
             <div className="flex items-start justify-between gap-4">
               <div><h2 className="font-display text-[1.25rem] font-semibold leading-none text-paper">Research agent</h2><p className="mt-1 text-[0.8125rem] text-muted">Sample policy — illustrative only</p></div>

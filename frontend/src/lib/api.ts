@@ -22,6 +22,48 @@ export interface AttemptDto {
   signature: string | null;
 }
 
+export function toBigIntSafe(value: unknown): bigint | null {
+  if (typeof value === "bigint") return value;
+  if (typeof value === "number" && Number.isInteger(value)) return BigInt(value);
+  if (typeof value === "string" && /^\d+$/.test(value)) return BigInt(value);
+  return null;
+}
+
+export interface NormalizedAttempt {
+  id: number | string | null;
+  status: string;
+  errorCode: string | null;
+  amountLamports: bigint | null;
+  recipient: string;
+  reason: string | null;
+  signature: string | null;
+  timestamp: number | string | null;
+  scenario: string | null;
+  policy: string | null;
+  serviceId: string | null;
+}
+
+export function normalizeAttempt(raw: unknown): NormalizedAttempt {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  const pick = (...keys: string[]): unknown => {
+    for (const k of keys) if (r[k] !== undefined) return r[k];
+    return undefined;
+  };
+  const id = (pick("id", "attemptId") as number | string | null) ?? null;
+  const status = String(pick("status") ?? "unknown");
+  const errorCode = (pick("errorCode", "error_code", "errorcode") as string | null) ?? null;
+  const amountRaw = pick("amountLamports", "amount_lamports", "amount", "lamports");
+  const amountLamports = toBigIntSafe(amountRaw);
+  const recipient = String(pick("recipient", "to", "wallet") ?? "");
+  const reason = (pick("reason") as string | null) ?? null;
+  const signature = (pick("signature", "sig", "txSignature") as string | null) ?? null;
+  const timestamp = (pick("timestamp", "createdAt", "created_at", "ts") as number | string | null) ?? null;
+  const scenario = (pick("scenario") as string | null) ?? null;
+  const policy = (pick("policy", "policyAddress") as string | null) ?? null;
+  const serviceId = (pick("serviceId", "service_id", "service", "id") as string | null) ?? null;
+  return { id, status, errorCode, amountLamports, recipient, reason, signature, timestamp, scenario, policy, serviceId };
+}
+
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(`${BACKEND_URL}${path}`);
   if (!res.ok) {
