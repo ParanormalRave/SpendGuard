@@ -1,5 +1,5 @@
 import path from "node:path";
-import { Keypair } from "@solana/web3.js";
+import { Keypair, PublicKey } from "@solana/web3.js";
 import { loadKeypair } from "../chain/keypairs";
 
 /**
@@ -58,8 +58,59 @@ const SERVICE_SPECS: readonly ServiceSpec[] = [
 
 let cached: Service[] | undefined;
 
+type EnvServiceInput = {
+  id: unknown;
+  name: unknown;
+  wallet: unknown;
+  description?: unknown;
+};
+
+function parseServiceWallets(raw: string): Service[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(
+      "SERVICE_WALLETS is not valid JSON. Expected a JSON array of { id, name, wallet } (public keys only).",
+    );
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error("SERVICE_WALLETS must be a JSON array of { id, name, wallet }");
+  }
+  if (parsed.length === 0) {
+    throw new Error("SERVICE_WALLETS must be a non-empty array of { id, name, wallet }");
+  }
+  const seen = new Set<string>();
+  return (parsed as EnvServiceInput[]).map((entry, i) => {
+    if (typeof entry !== "object" || entry === null) {
+      throw new Error(`SERVICE_WALLETS[${i}] must be an object with { id, name, wallet }`);
+    }
+    const id = typeof entry.id === "string" ? entry.id.trim() : "";
+    const name = typeof entry.name === "string" ? entry.name.trim() : "";
+    const wallet = typeof entry.wallet === "string" ? entry.wallet.trim() : "";
+    const description = typeof entry.description === "string" ? entry.description : "";
+    if (!id) throw new Error(`SERVICE_WALLETS[${i}].id is required`);
+    if (!name) throw new Error(`SERVICE_WALLETS[${i}].name is required`);
+    if (!wallet) throw new Error(`SERVICE_WALLETS[${i}].wallet is required`);
+    if (seen.has(id)) throw new Error(`SERVICE_WALLETS has duplicate id "${id}"`);
+    seen.add(id);
+    try {
+      new PublicKey(wallet);
+    } catch {
+      throw new Error(`SERVICE_WALLETS[${i}] wallet is not a valid Solana public key (id="${id}")`);
+    }
+    return { id, name, wallet, description };
+  });
+}
+
 /**
  * The four mock services: three on the allowlist plus `rogue-service`.
+ *
+ * Precedence:
+ * 1. If SERVICE_WALLETS is set, parse it as JSON array of { id, name, wallet[, description] }
+ *    containing public keys only and use it verbatim (no file reads, no key generation).
+ * 2. Else if NODE_ENV=production, throw — never generate random wallets in production.
+ * 3. Else fall back to local behavior: read keys/ files, random wallet if missing.
  *
  * Wallets come from the keypairs `setup-demo.ts` generated. If a file is
  * missing (for example before setup has run) a throwaway wallet is used so the
@@ -69,6 +120,18 @@ let cached: Service[] | undefined;
 export function loadServices(): Service[] {
   if (cached !== undefined) {
     return cached;
+  }
+
+  const raw = process.env.SERVICE_WALLETS?.trim();
+  if (raw !== undefined && raw.length > 0) {
+    cached = parseServiceWallets(raw);
+    return cached;
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "SERVICE_WALLETS is required when NODE_ENV=production. Set it to a JSON array of { id, name, wallet } public keys. Random wallets are disabled in production.",
+    );
   }
 
   const keysDir = path.resolve(__dirname, "../../keys");

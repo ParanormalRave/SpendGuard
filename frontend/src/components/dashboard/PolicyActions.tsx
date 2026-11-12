@@ -78,7 +78,7 @@ export function DepositAction({
         <span className="font-mono text-paper">{vaultBalance !== null ? `${lamportsToSol(vaultBalance)} SOL` : "—"}</span>
       </p>
       {!isOwner ? (
-        <p role="alert" className="rounded-control border border-caution/30 bg-caution-wash px-3 py-2 text-[0.8125rem] text-paper">
+        <p role="alert" className="rounded-control border border-caution/30 bg-caution-wash px-3 py-2 text-[0.8125rem] text-paper [overflow-wrap:anywhere] break-words whitespace-pre-wrap">
           Only the owner ({shortSig(policy.owner.toBase58())}) can deposit. Connect the owner wallet.
         </p>
       ) : null}
@@ -102,12 +102,15 @@ export function DepositAction({
         </span>
       </label>
       {error ? (
-        <p role="alert" className="rounded-control border border-blocked/30 bg-blocked/10 px-3 py-2 text-[0.8125rem] text-blocked">
+        <p
+          role="alert"
+          className="rounded-control border border-blocked/30 bg-blocked/10 px-3 py-2 text-[0.8125rem] text-blocked [overflow-wrap:anywhere] break-words whitespace-pre-wrap"
+        >
           {error}
         </p>
       ) : null}
       {sig ? (
-        <p className="break-all text-[0.8125rem] text-allowed">
+        <p className="break-all text-[0.8125rem] text-allowed [overflow-wrap:anywhere] whitespace-pre-wrap">
           Deposited —{" "}
           <a
             href={`https://explorer.solana.com/tx/${sig}?cluster=devnet`}
@@ -173,7 +176,7 @@ export function PauseAction({
         {policy.paused ? "Agent is paused — no payments can go through." : "Pause stops the agent from paying until you resume."}
       </p>
       {!isOwner ? (
-        <p role="alert" className="rounded-control border border-caution/30 bg-caution-wash px-3 py-2 text-[0.8125rem] text-paper">
+        <p role="alert" className="rounded-control border border-caution/30 bg-caution-wash px-3 py-2 text-[0.8125rem] text-paper [overflow-wrap:anywhere] break-words whitespace-pre-wrap">
           Only the owner can pause or resume.
         </p>
       ) : null}
@@ -183,12 +186,15 @@ export function PauseAction({
         </div>
       ) : null}
       {error ? (
-        <p role="alert" className="rounded-control border border-blocked/30 bg-blocked/10 px-3 py-2 text-[0.8125rem] text-blocked">
+        <p
+          role="alert"
+          className="rounded-control border border-blocked/30 bg-blocked/10 px-3 py-2 text-[0.8125rem] text-blocked [overflow-wrap:anywhere] break-words whitespace-pre-wrap"
+        >
           {error}
         </p>
       ) : null}
       {sig ? (
-        <p className="break-all text-[0.8125rem] text-allowed">
+        <p className="break-all text-[0.8125rem] text-allowed [overflow-wrap:anywhere] whitespace-pre-wrap">
           {policy.paused ? "Resumed" : "Paused"} —{" "}
           <a
             href={`https://explorer.solana.com/tx/${sig}?cluster=devnet`}

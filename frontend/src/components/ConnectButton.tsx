@@ -90,7 +90,7 @@ export function ConnectButton() {
         </button>
       </div>
       {error ? (
-        <p role="alert" className="max-w-[18rem] text-right text-[0.8125rem] text-blocked">
+        <p role="alert" className="max-w-[18rem] text-right text-[0.8125rem] text-blocked [overflow-wrap:anywhere] break-words whitespace-pre-wrap">
           {error}
         </p>
       ) : null}

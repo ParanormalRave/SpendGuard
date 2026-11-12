@@ -380,7 +380,7 @@ export default function CreatePage() {
 
       <div className="rounded-panel border border-line bg-panel p-5 sm:p-6">
         {!owner && (
-          <p role="alert" className="mb-4 rounded-control border border-blocked/30 bg-blocked/10 px-3 py-2 text-[0.9375rem] text-blocked">
+          <p role="alert" className="mb-4 rounded-control border border-blocked/30 bg-blocked/10 px-3 py-2 text-[0.9375rem] text-blocked [overflow-wrap:anywhere] break-words whitespace-pre-wrap">
             Connect a wallet to create a policy. Your wallet will be the policy owner.
           </p>
         )}
@@ -426,7 +426,7 @@ export default function CreatePage() {
                   This address matches the backend signing keypair for <span className="font-mono">agent_transfer</span>.
                 </p>
                 {agentError && (
-                  <span role="alert" className="block text-[0.8125rem] text-blocked">
+                  <span role="alert" className="block text-[0.8125rem] text-blocked [overflow-wrap:anywhere] break-words whitespace-pre-wrap">
                     {agentError}
                   </span>
                 )}
@@ -435,7 +435,7 @@ export default function CreatePage() {
 
             {agentFetchFailed && (
               <div className="space-y-3 rounded-control border border-blocked/30 bg-blocked/10 px-4 py-3">
-                <p role="alert" className="text-[0.9375rem] font-semibold text-blocked">
+                <p role="alert" className="text-[0.9375rem] font-semibold text-blocked [overflow-wrap:anywhere] break-words whitespace-pre-wrap">
                   Could not load the configured agent address — {agentFetchError}
                 </p>
                 <p className="text-[0.8125rem] text-muted">
@@ -453,7 +453,7 @@ export default function CreatePage() {
                     className="w-full rounded-control border border-line bg-ink px-3 py-2 font-mono text-[0.875rem] text-paper placeholder:text-muted focus:border-leash focus:outline-none"
                   />
                   {manualAgent.trim() && agentError && (
-                    <span role="alert" className="mt-1 block text-[0.8125rem] text-blocked">
+                    <span role="alert" className="mt-1 block text-[0.8125rem] text-blocked [overflow-wrap:anywhere] break-words whitespace-pre-wrap">
                       {agentError}
                     </span>
                   )}
@@ -525,7 +525,7 @@ export default function CreatePage() {
                   {perTx.lamports !== null ? `${perTx.lamports.toString()} lamports` : "—"}
                 </span>
                 {perTx.error && (
-                  <span role="alert" className="mt-1 block text-[0.8125rem] text-blocked">
+                  <span role="alert" className="mt-1 block text-[0.8125rem] text-blocked [overflow-wrap:anywhere] break-words whitespace-pre-wrap">
                     {perTx.error}
                   </span>
                 )}
@@ -549,14 +549,14 @@ export default function CreatePage() {
                   {windowLim.lamports !== null ? `${windowLim.lamports.toString()} lamports` : "—"}
                 </span>
                 {windowLim.error && (
-                  <span role="alert" className="mt-1 block text-[0.8125rem] text-blocked">
+                  <span role="alert" className="mt-1 block text-[0.8125rem] text-blocked [overflow-wrap:anywhere] break-words whitespace-pre-wrap">
                     {windowLim.error}
                   </span>
                 )}
               </label>
             </div>
             {crossLimitError && (
-              <p role="alert" className="text-[0.8125rem] text-blocked">
+              <p role="alert" className="text-[0.8125rem] text-blocked [overflow-wrap:anywhere] break-words whitespace-pre-wrap">
                 {crossLimitError}
               </p>
             )}
@@ -585,7 +585,7 @@ export default function CreatePage() {
                 {windowSeconds !== null ? `${windowSeconds} seconds` : "—"}
               </span>
               {windowError && (
-                <span role="alert" className="mt-1 block text-[0.8125rem] text-blocked">
+                <span role="alert" className="mt-1 block text-[0.8125rem] text-blocked [overflow-wrap:anywhere] break-words whitespace-pre-wrap">
                   {windowError}
                 </span>
               )}
@@ -635,7 +635,7 @@ export default function CreatePage() {
                 {withdrawDelaySeconds !== null ? `${withdrawDelaySeconds} seconds` : "—"}
               </span>
               {delayError && (
-                <span role="alert" className="block text-[0.8125rem] text-blocked">
+                <span role="alert" className="block text-[0.8125rem] text-blocked [overflow-wrap:anywhere] break-words whitespace-pre-wrap">
                   {delayError}
                 </span>
               )}
@@ -667,7 +667,7 @@ export default function CreatePage() {
                       className="w-full rounded-control border border-line bg-ink px-3 py-2 font-mono text-[0.8125rem] text-paper placeholder:text-muted focus:border-leash focus:outline-none"
                     />
                     {recipientErrors[idx] && (
-                      <span role="alert" className="mt-1 block text-[0.8125rem] text-blocked">
+                      <span role="alert" className="mt-1 block text-[0.8125rem] text-blocked [overflow-wrap:anywhere] break-words whitespace-pre-wrap">
                         {recipientErrors[idx]}
                       </span>
                     )}
@@ -683,7 +683,7 @@ export default function CreatePage() {
                 </div>
               ))}
               {duplicateRecipient && (
-                <p role="alert" className="text-[0.8125rem] text-blocked">
+                <p role="alert" className="text-[0.8125rem] text-blocked [overflow-wrap:anywhere] break-words whitespace-pre-wrap">
                   {duplicateRecipient}
                 </p>
               )}
@@ -778,7 +778,10 @@ export default function CreatePage() {
             </label>
 
             {error && (
-              <p role="alert" className="rounded-control border border-blocked/30 bg-blocked/10 px-3 py-2 text-[0.9375rem] text-blocked">
+              <p
+                role="alert"
+                className="rounded-control border border-blocked/30 bg-blocked/10 px-3 py-2 text-[0.9375rem] text-blocked [overflow-wrap:anywhere] break-words whitespace-pre-wrap"
+              >
                 {error}
               </p>
             )}

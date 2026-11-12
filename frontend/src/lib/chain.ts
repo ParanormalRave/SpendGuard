@@ -16,6 +16,7 @@ import idlJson from "@/idl/spendguard.json";
 import type { Spendguard } from "@/idl/spendguard";
 import { PROGRAM_ID } from "./env";
 import { getConnectionForRead, getProgram, type WalletLike } from "./program";
+import { confirmSignature } from "./confirm";
 
 const IDL = idlJson as unknown as Spendguard;
 
@@ -147,6 +148,7 @@ export async function listPoliciesByOwner(owner: PublicKey): Promise<PolicyView[
 // ------------------------------------------------------------------ owner actions (IDL-verified, no invented accounts)
 
 // deposit: IDL `deposit(amount:u64)` accounts {owner signer+mut+has_one policy, policy mut pda, vault mut pda [vault, policy], systemProgram}
+// Sends once, then polls getSignatureStatuses every 2s for 90s / lastValidBlockHeight (searchTransactionHistory:true).
 // Verified against contracts/programs/spendguard/src/instructions/deposit.rs + IDL
 export async function deposit(
   wallet: WalletLike,
@@ -158,6 +160,11 @@ export async function deposit(
   const program = getProgram(wallet);
   const owner = wallet.publicKey;
   const vault = deriveVaultPda(policyAddress);
+  const conn = getReadonlyConnection();
+  let lastValidBlockHeight: number | undefined;
+  try {
+    lastValidBlockHeight = (await conn.getLatestBlockhash("confirmed")).lastValidBlockHeight;
+  } catch {}
   const sig = await program.methods
     .deposit(new BN(amountLamports.toString()))
     .accountsPartial({
@@ -167,10 +174,12 @@ export async function deposit(
       systemProgram: SystemProgram.programId,
     })
     .rpc();
+  await confirmSignature(conn, sig, lastValidBlockHeight);
   return sig;
 }
 
 // set_paused: IDL `set_paused(paused:bool)` accounts {owner signer+has_one policy, policy mut pda}
+// Same confirmation semantics as above; no auto-retry.
 // Verified against contracts/programs/spendguard/src/instructions/set_paused.rs + IDL
 export async function setPaused(
   wallet: WalletLike,
@@ -180,6 +189,11 @@ export async function setPaused(
   if (!wallet.publicKey) throw new Error("Wallet not connected");
   const program = getProgram(wallet);
   const owner = wallet.publicKey;
+  const conn = getReadonlyConnection();
+  let lastValidBlockHeight: number | undefined;
+  try {
+    lastValidBlockHeight = (await conn.getLatestBlockhash("confirmed")).lastValidBlockHeight;
+  } catch {}
   const sig = await program.methods
     .setPaused(paused)
     .accountsPartial({
@@ -187,5 +201,8 @@ export async function setPaused(
       policy: policyAddress,
     })
     .rpc();
+  await confirmSignature(conn, sig, lastValidBlockHeight);
   return sig;
 }
+// Any future tx-sending helpers (requestWithdraw/cancelWithdraw/executeWithdraw/addRecipient/closePolicy)
+// must reuse confirmSignature with the same 2s/90s/lastValidBlockHeight/searchTransactionHistory contract.

@@ -365,7 +365,7 @@ export function DashboardClient() {
           <DashboardPolicyCard policy={activePolicy} vaultBalance={vaultBalance} vaultError={vaultError} />
 
           {activePolicy.paused ? (
-            <div role="alert" className="rounded-control border border-blocked/40 bg-blocked-wash px-4 py-3 text-[0.9375rem] font-semibold text-blocked">
+            <div role="alert" className="rounded-control border border-blocked/40 bg-blocked-wash px-4 py-3 text-[0.9375rem] font-semibold text-blocked [overflow-wrap:anywhere] break-words whitespace-pre-wrap">
               Agent paused. No payments can go through.
             </div>
           ) : null}

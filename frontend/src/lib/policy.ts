@@ -1,7 +1,9 @@
 import BN from "bn.js";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { confirmSignature } from "./confirm";
+import { explainError } from "./errors";
 import { getConnectionForRead, getProgram, getRpcHostname, type WalletLike } from "./program";
-import { RPC_URL, PROGRAM_ID } from "./env";
+import { PROGRAM_ID } from "./env";
 
 export interface CreatePolicyParams {
   agent: PublicKey;
@@ -128,48 +130,27 @@ export async function createPolicy(
       systemProgram: SystemProgram.programId,
     });
 
-  async function sendOnce(): Promise<string> {
-    // Use Anchor's rpc path which fetches blockhash at send time and uses the
-    // provider's wallet signing. This preserves PDA resolution and IDL validation.
-    return await method.rpc();
-  }
-
+  // Single send only — never auto-retry createPolicy (would create a second PDA if first landed).
   let signature: string;
   try {
-    signature = await sendOnce();
+    signature = await method.rpc();
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    const isBlockhashError = /blockhash not found|blockhash.*expired|Blockhash not found/i.test(msg);
-    // Never blindly resubmit: check if the transaction actually landed.
-    // The first attempt may have succeeded on-chain even though simulation/RPC reported blockhash.
-    // We check by looking for the policy account that would have been created.
-    if (isBlockhashError) {
-      console.warn(`[createPolicy] blockhash error on ${getRpcHostname()} (RPC_URL=${RPC_URL.slice(0, 30)}…): ${msg}. Checking if policy already created before retry.`);
-      try {
-        const existing = await conn.getAccountInfo(policy, "confirmed");
-        if (existing !== null) {
-          throw new Error(
-            `Transaction may have succeeded (policy ${policy.toBase58()} already exists on ${getRpcHostname()}). Check Explorer before retrying: https://explorer.solana.com/address/${policy.toBase58()}?cluster=devnet`
-          );
-        }
-      } catch (checkErr) {
-        if (checkErr instanceof Error && checkErr.message.includes("already exists")) throw checkErr;
-        // otherwise continue to retry
-      }
-      // Single retry with a fresh blockhash
-      try {
-        const fresh = await conn.getLatestBlockhash("confirmed");
-        console.debug(`[createPolicy] retry with fresh blockhash ${fresh.blockhash.slice(0, 4)}… lastValidBlockHeight=${fresh.lastValidBlockHeight}`);
-      } catch {
-        // ignore log failure
-      }
-      signature = await sendOnce();
-      console.debug(`[createPolicy] retry succeeded signature=${signature.slice(0, 8)}…`);
-      return { signature, policy, policyId, vault };
-    }
-    // Include safe context for debugging without leaking blockhash fully
+    const code =
+      (err as { error?: { errorCode?: { code?: string } } })?.error?.errorCode?.code ?? null;
+    if (code) throw new Error(`${explainError(code)} (${msg})`);
     const ctx = `rpc=${getRpcHostname()} program=${PROGRAM_ID} commitment=confirmed lastValidBlockHeight=${latest?.lastValidBlockHeight ?? "unknown"}`;
     throw new Error(`${msg} (${ctx})`);
+  }
+
+  // Poll confirmation: every 2s for up to 90s or until lastValidBlockHeight passes
+  try {
+    await confirmSignature(conn, signature, latest?.lastValidBlockHeight);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!msg.includes(signature))
+      throw new Error(`${msg} signature=${signature} https://explorer.solana.com/tx/${signature}?cluster=devnet`);
+    throw e instanceof Error ? e : new Error(msg);
   }
 
   return { signature, policy, policyId, vault };

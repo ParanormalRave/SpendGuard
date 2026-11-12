@@ -29,7 +29,7 @@ export function AlertBanner() {
   if (!critical) return null;
 
   return (
-    <div role="alert" className="flex items-center justify-between gap-3 bg-blocked px-4 py-3 text-[0.8125rem] font-semibold text-ink sm:px-6">
+    <div role="alert" className="flex items-center justify-between gap-3 bg-blocked px-4 py-3 text-[0.8125rem] font-semibold text-ink sm:px-6 [overflow-wrap:anywhere] break-words whitespace-pre-wrap">
       <span>
         {critical.title}: {critical.message}
       </span>
