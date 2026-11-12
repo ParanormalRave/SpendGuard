@@ -26,6 +26,7 @@ export interface AppConfig {
   smtpUser?: string;
   smtpPass?: string;
   emailFrom?: string;
+  resendApiKey?: string;
   unusualMultiplier: number;
   unusualMinHistory: number;
   nearLimitPercent: number;
@@ -116,6 +117,7 @@ export function loadConfig(): AppConfig {
     smtpUser: optionalEnv("SMTP_USER"),
     smtpPass: optionalEnv("SMTP_PASS")?.replace(/\s+/g, ""),
     emailFrom: optionalEnv("EMAIL_FROM"),
+    resendApiKey: optionalEnv("RESEND_API_KEY"),
     unusualMultiplier,
     unusualMinHistory,
     nearLimitPercent,

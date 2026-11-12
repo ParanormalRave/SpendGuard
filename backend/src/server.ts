@@ -460,8 +460,14 @@ export function createApp(): express.Express {
       await sendEmail(row.email, subject, html);
       res.json({ ok: true });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      res.status(502).json({ error: msg });
+      if (e instanceof Error && e.message === "The email provider only allows sending to the account owner until a domain is verified") {
+        console.error(`[notifications/test] email failed code=HTTP_403`);
+        res.status(403).json({ error: e.message });
+        return;
+      }
+      const code = (e as { code?: string })?.code ?? (e instanceof Error ? e.name : "UNKNOWN");
+      console.error(`[notifications/test] email failed code=${code}`);
+      res.status(503).json({ error: "Email service is unreachable from this server" });
     }
   }));
 

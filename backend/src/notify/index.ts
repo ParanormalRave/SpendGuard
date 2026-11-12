@@ -16,9 +16,8 @@ export async function notifyOwner(alert: AlertInput): Promise<void> {
     const { subject, html } = buildAlertEmail(alert as unknown as Parameters<typeof buildAlertEmail>[0]);
     await sendEmail(user.email, subject, html);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    // Never log full email
-    console.error(`[notify] failed for owner ${alert.owner.slice(0, 4)}…: ${msg.replace(/([?&]api-key=)[^&\s]+/gi, "$1***")}`);
+    const code = (e as { code?: string })?.code ?? (e instanceof Error ? e.name : "UNKNOWN");
+    console.error(`[notify] email failed code=${code}`);
   }
 }
 
